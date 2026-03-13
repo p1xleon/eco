@@ -41,7 +41,7 @@ macos/
 linux/
 web/
 windows/
-
+supabase/
 # Symbolication related
 app.*.symbols
 
