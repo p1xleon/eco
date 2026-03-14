@@ -3,6 +3,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../constants/default_categories.dart';
 import '../constants/default_transaction_presets.dart';
+import '../../features/recurring/data/models/recurring_transaction_model.dart';
 import '../../features/transactions/data/models/transaction_model.dart';
 import '../../features/categories/data/models/category_model.dart';
 import '../../features/settings/data/models/transaction_preset_model.dart';
@@ -14,6 +15,7 @@ class IsarService {
     final dir = await getApplicationDocumentsDirectory();
 
     isar = await Isar.open([
+      RecurringTransactionModelSchema,
       TransactionModelSchema,
       CategoryModelSchema,
       TransactionPresetModelSchema,
