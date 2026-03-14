@@ -7,8 +7,18 @@ class AuthRepository {
 
   User? get currentUser => client.auth.currentUser;
 
-  Future<void> signUp({required String email, required String password}) async {
-    await client.auth.signUp(email: email, password: password);
+  Future<void> signUp({
+    required String email,
+    required String password,
+    required String displayName,
+  }) async {
+    await client.auth.signUp(
+      email: email,
+      password: password,
+      data: {
+        'full_name': displayName,
+      },
+    );
   }
 
   Future<void> signIn({required String email, required String password}) async {
