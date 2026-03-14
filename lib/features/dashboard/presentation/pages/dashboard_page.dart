@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
-import '../../../transactions/data/models/transaction_model.dart';
+import '../../../../shared/widgets/transaction_card.dart';
 import '../providers/dashboard_provider.dart';
 import '../../../transactions/presentation/providers/transaction_provider.dart';
 
@@ -69,7 +68,14 @@ class DashboardPage extends ConsumerWidget {
               }
 
               return Column(
-                children: recent.map((tx) => _RecentTile(tx)).toList(),
+                children: recent
+                    .map(
+                      (tx) => TransactionCard(
+                        transaction: tx,
+                        margin: const EdgeInsets.only(bottom: 12),
+                      ),
+                    )
+                    .toList(),
               );
             },
             loading: () => const CircularProgressIndicator(),
@@ -135,40 +141,6 @@ class _SummaryCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RecentTile extends StatelessWidget {
-  final TransactionModel tx;
-
-  const _RecentTile(this.tx);
-
-  @override
-  Widget build(BuildContext context) {
-    final isExpense = tx.type == TransactionType.expense;
-    final detailParts = [tx.payee, tx.paymentMethod]
-        .whereType<String>()
-        .where((value) => value.trim().isNotEmpty)
-        .toList();
-
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(tx.title),
-      subtitle: Text(
-        [
-          DateFormat("dd MMM yyyy").format(tx.date),
-          if (detailParts.isNotEmpty) detailParts.join(' • '),
-        ].join('\n'),
-      ),
-      isThreeLine: detailParts.isNotEmpty,
-      trailing: Text(
-        "₹${tx.amount.toStringAsFixed(2)}",
-        style: TextStyle(
-          color: isExpense ? Colors.red : Colors.green,
-          fontWeight: FontWeight.bold,
         ),
       ),
     );
