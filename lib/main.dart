@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -9,15 +10,26 @@ import 'core/database/transaction_preset_seeder.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
 
   await IsarService.init();
   await CategorySeeder.seed();
   await TransactionPresetSeeder.ensureDefaults();
 
+  final supabaseUrl = dotenv.env['SUPABASE_URL'];
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
+
+  if (supabaseUrl == null || supabaseUrl.isEmpty) {
+    throw Exception('Missing SUPABASE_URL in .env');
+  }
+
+  if (supabaseAnonKey == null || supabaseAnonKey.isEmpty) {
+    throw Exception('Missing SUPABASE_ANON_KEY in .env');
+  }
+
   await Supabase.initialize(
-    url: 'https://ygqdppxgsjnkhwknjijz.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlncWRwcHhnc2pua2h3a25qaWp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMDgxNzMsImV4cCI6MjA4ODg4NDE3M30.EKvjh7cqseC2KHgGII4-irrlXtCzOKTabieC_U1oJ84',
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
   );
 
   runApp(const ProviderScope(child: Eco()));

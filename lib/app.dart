@@ -9,6 +9,8 @@ import 'core/theme/theme_provider.dart';
 class Eco extends ConsumerWidget {
   const Eco({super.key});
 
+  static const _fallbackSeed = Color.fromARGB(255, 255, 153, 0);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeNotifier = ref.watch(themeProvider.notifier);
@@ -16,12 +18,12 @@ class Eco extends ConsumerWidget {
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
         final lightScheme =
-            lightDynamic ?? ColorScheme.fromSeed(seedColor: Colors.blue);
+            lightDynamic ?? ColorScheme.fromSeed(seedColor: _fallbackSeed);
 
         final darkScheme =
             darkDynamic ??
             ColorScheme.fromSeed(
-              seedColor: Colors.blue,
+              seedColor: _fallbackSeed,
               brightness: Brightness.dark,
             );
 
