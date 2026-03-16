@@ -135,34 +135,54 @@ class SettingsPage extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
-                  vertical: 4,
+                  vertical: 14,
                 ),
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.palette_outlined),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Theme',
-                            style: TextStyle(fontWeight: FontWeight.w600),
+                    Row(
+                      children: [
+                        const Icon(Icons.palette_outlined),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Theme',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                'Choose how the app should appear',
+                                style: TextStyle(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            _themeLabel(theme),
-                            style: TextStyle(color: scheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    DropdownButton<ThemeModeSetting>(
-                      value: theme,
-                      underline: const SizedBox(),
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<ThemeModeSetting>(
+                      initialValue: theme,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: scheme.surface,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                       items: ThemeModeSetting.values
                           .map(
                             (mode) => DropdownMenuItem(
@@ -174,6 +194,11 @@ class SettingsPage extends ConsumerWidget {
                       onChanged: (mode) {
                         if (mode != null) notifier.setTheme(mode);
                       },
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Current: ${_themeLabel(theme)}',
+                      style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                   ],
                 ),
