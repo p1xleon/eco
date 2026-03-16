@@ -2,27 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/auth_provider.dart';
-import 'sign_up_page.dart';
 
-class LoginPage extends ConsumerStatefulWidget {
-  const LoginPage({super.key});
+class SignUpPage extends ConsumerStatefulWidget {
+  const SignUpPage({super.key});
 
   @override
-  ConsumerState<LoginPage> createState() => _LoginPageState();
+  ConsumerState<SignUpPage> createState() => _SignUpPageState();
 }
 
-class _LoginPageState extends ConsumerState<LoginPage> {
+class _SignUpPageState extends ConsumerState<SignUpPage> {
   final _formKey = GlobalKey<FormState>();
+  final _displayNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
+    _displayNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -35,10 +39,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     try {
       final auth = ref.read(authRepositoryProvider);
-      await auth.signIn(
+      await auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        displayName: _displayNameController.text.trim(),
       );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Account created. If email confirmation is enabled, check your inbox.',
+          ),
+        ),
+      );
+      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -60,13 +75,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              scheme.primaryContainer.withValues(alpha: 0.95),
+              scheme.secondaryContainer.withValues(alpha: 0.90),
               scheme.surface,
-              scheme.secondaryContainer.withValues(alpha: 0.75),
+              scheme.primaryContainer.withValues(alpha: 0.80),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            stops: const [0, 0.55, 1],
+            stops: const [0, 0.56, 1],
           ),
         ),
         child: SafeArea(
@@ -74,11 +89,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
+                constraints: const BoxConstraints(maxWidth: 460),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _HeroPanel(isLoading: _isLoading),
+                    _SignUpHero(isLoading: _isLoading),
                     const SizedBox(height: 18),
                     Container(
                       padding: const EdgeInsets.all(22),
@@ -102,13 +117,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Sign in',
+                              'Create account',
                               style: Theme.of(context).textTheme.headlineSmall
                                   ?.copyWith(fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Use your account to sync transactions, presets, and categories.',
+                              'Set up email/password sign in and a display name for your profile.',
                               style: TextStyle(
                                 color: scheme.onSurfaceVariant,
                                 height: 1.4,
@@ -116,9 +131,26 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             ),
                             const SizedBox(height: 22),
                             TextFormField(
+                              controller: _displayNameController,
+                              textInputAction: TextInputAction.next,
+                              decoration: const InputDecoration(
+                                labelText: 'Display Name',
+                                prefixIcon: Icon(Icons.badge_outlined),
+                              ),
+                              validator: (value) {
+                                final text = value?.trim() ?? '';
+                                if (text.isEmpty) return 'Enter a display name';
+                                if (text.length < 2) {
+                                  return 'Display name is too short';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
-                              autofillHints: const [AutofillHints.username],
+                              autofillHints: const [AutofillHints.newUsername],
                               textInputAction: TextInputAction.next,
                               decoration: const InputDecoration(
                                 labelText: 'Email',
@@ -137,9 +169,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             TextFormField(
                               controller: _passwordController,
                               obscureText: _obscurePassword,
-                              autofillHints: const [AutofillHints.password],
-                              textInputAction: TextInputAction.done,
-                              onFieldSubmitted: (_) => _submit(),
+                              autofillHints: const [AutofillHints.newPassword],
+                              textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
                                 labelText: 'Password',
                                 prefixIcon: const Icon(Icons.lock_outline_rounded),
@@ -157,8 +188,44 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 ),
                               ),
                               validator: (value) {
+                                final text = value ?? '';
+                                if (text.isEmpty) return 'Enter a password';
+                                if (text.length < 6) {
+                                  return 'Use at least 6 characters';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _confirmPasswordController,
+                              obscureText: _obscureConfirmPassword,
+                              autofillHints: const [AutofillHints.newPassword],
+                              textInputAction: TextInputAction.done,
+                              onFieldSubmitted: (_) => _submit(),
+                              decoration: InputDecoration(
+                                labelText: 'Confirm Password',
+                                prefixIcon: const Icon(Icons.verified_user_outlined),
+                                suffixIcon: IconButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscureConfirmPassword =
+                                          !_obscureConfirmPassword;
+                                    });
+                                  },
+                                  icon: Icon(
+                                    _obscureConfirmPassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                  ),
+                                ),
+                              ),
+                              validator: (value) {
                                 if ((value ?? '').isEmpty) {
-                                  return 'Enter your password';
+                                  return 'Confirm your password';
+                                }
+                                if (value != _passwordController.text) {
+                                  return 'Passwords do not match';
                                 }
                                 return null;
                               },
@@ -181,7 +248,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                           strokeWidth: 2,
                                         ),
                                       )
-                                    : const Text('Continue'),
+                                    : const Text('Create account'),
                               ),
                             ),
                             const SizedBox(height: 14),
@@ -189,7 +256,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  'New here?',
+                                  'Already have an account?',
                                   style: TextStyle(
                                     color: scheme.onSurfaceVariant,
                                   ),
@@ -197,49 +264,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                 TextButton(
                                   onPressed: _isLoading
                                       ? null
-                                      : () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  const SignUpPage(),
-                                            ),
-                                          );
-                                        },
-                                  child: const Text('Create account'),
+                                      : () => Navigator.pop(context),
+                                  child: const Text('Sign in'),
                                 ),
                               ],
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHighest.withValues(
-                                  alpha: 0.55,
-                                ),
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.sync_lock_outlined,
-                                    size: 20,
-                                    color: scheme.primary,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      'Signing in enables cloud sync across your devices.',
-                                      style: TextStyle(
-                                        color: scheme.onSurfaceVariant,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ),
                           ],
                         ),
@@ -257,15 +285,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   String _messageForError(Object error) {
     final message = error.toString();
-    if (message.isEmpty) return 'Unable to sign in.';
+    if (message.isEmpty) return 'Unable to create account.';
     return message;
   }
 }
 
-class _HeroPanel extends StatelessWidget {
+class _SignUpHero extends StatelessWidget {
   final bool isLoading;
 
-  const _HeroPanel({required this.isLoading});
+  const _SignUpHero({required this.isLoading});
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +302,7 @@ class _HeroPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.12),
+        color: scheme.secondary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(32),
       ),
       child: Column(
@@ -284,18 +312,18 @@ class _HeroPanel extends StatelessWidget {
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: scheme.primary,
+              color: scheme.secondary,
               borderRadius: BorderRadius.circular(18),
             ),
             child: Icon(
-              isLoading ? Icons.sync_rounded : Icons.account_balance_wallet,
-              color: scheme.onPrimary,
+              isLoading ? Icons.person_add_alt_1_rounded : Icons.person_rounded,
+              color: scheme.onSecondary,
               size: 28,
             ),
           ),
           const SizedBox(height: 18),
           Text(
-            'Track money with less friction.',
+            'Start with a synced account.',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.w800,
               height: 1.05,
@@ -303,7 +331,7 @@ class _HeroPanel extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Clean records, synced data, and quick transaction capture in one place.',
+            'Create your profile once, then keep transactions and preferences in sync.',
             style: TextStyle(
               color: scheme.onSurfaceVariant,
               height: 1.45,
