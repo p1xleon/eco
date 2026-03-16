@@ -27,20 +27,41 @@ class TransactionRepository {
     return _getLocalTransactions();
   }
 
-  Future<void> add(TransactionModel tx) async {
+  Future<TransactionModel> add(TransactionModel tx) async {
     if (remote.isAuthenticated) {
       try {
         final saved = await uploadTransaction(tx);
         await _isar.writeTxn(() async {
           await _isar.transactionModels.put(saved);
         });
-        return;
+        return saved;
       } catch (_) {}
     }
 
     await _isar.writeTxn(() async {
       await _isar.transactionModels.put(tx);
     });
+
+    return tx;
+  }
+
+  Future<TransactionModel> update(TransactionModel tx) async {
+    if (remote.isAuthenticated && tx.remoteId != null) {
+      final saved = await updateRemoteTransaction(tx);
+      saved.id = tx.id;
+
+      await _isar.writeTxn(() async {
+        await _isar.transactionModels.put(saved);
+      });
+
+      return saved;
+    }
+
+    await _isar.writeTxn(() async {
+      await _isar.transactionModels.put(tx);
+    });
+
+    return tx;
   }
 
   Future<void> delete(int id) async {
@@ -61,10 +82,25 @@ class TransactionRepository {
   }
 
   Future<void> _syncLocalCache(List<TransactionModel> transactions) async {
+    final syncedLocal = await _isar.transactionModels
+        .filter()
+        .remoteIdIsNotNull()
+        .findAll();
     final unsyncedLocal = await _isar.transactionModels
         .filter()
         .remoteIdIsNull()
         .findAll();
+    final recurringIdsByRemoteId = <String, String?>{
+      for (final tx in syncedLocal)
+        if (tx.remoteId != null) tx.remoteId!: tx.recurringId,
+    };
+
+    for (final tx in transactions) {
+      final recurringId = recurringIdsByRemoteId[tx.remoteId];
+      if (recurringId != null) {
+        tx.recurringId = recurringId;
+      }
+    }
 
     await _isar.writeTxn(() async {
       await _isar.transactionModels.clear();
@@ -80,6 +116,16 @@ class TransactionRepository {
     }
 
     final data = await remote.addTransaction(tx.toJson(user.id));
+    return TransactionMapper.fromJson(data);
+  }
+
+  Future<TransactionModel> updateRemoteTransaction(TransactionModel tx) async {
+    final user = remote.currentUser;
+    if (user == null || tx.remoteId == null) {
+      return tx;
+    }
+
+    final data = await remote.updateTransaction(tx.remoteId!, tx.toJson(user.id));
     return TransactionMapper.fromJson(data);
   }
 

@@ -9,7 +9,9 @@ import '../../data/providers/transaction_repository_provider.dart';
 import '../providers/transaction_provider.dart';
 
 class AddTransactionPage extends ConsumerStatefulWidget {
-  const AddTransactionPage({super.key});
+  final TransactionModel? initialTransaction;
+
+  const AddTransactionPage({super.key, this.initialTransaction});
 
   @override
   ConsumerState<AddTransactionPage> createState() => _AddTransactionPageState();
@@ -26,6 +28,25 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
   DateTime _date = DateTime.now();
   int? _categoryId;
 
+  bool get _isEditing => widget.initialTransaction != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final transaction = widget.initialTransaction;
+    if (transaction == null) return;
+
+    _titleController.text = transaction.title;
+    _amountController.text = transaction.amount.toStringAsFixed(2);
+    _paymentMethodController.text = transaction.paymentMethod ?? '';
+    _payeeController.text = transaction.payee ?? '';
+    _noteController.text = transaction.note ?? '';
+    _type = transaction.type;
+    _date = transaction.date;
+    _categoryId = transaction.categoryId;
+  }
+
   Future<void> _save() async {
     final title = _titleController.text.trim();
     final amount = double.tryParse(_amountController.text);
@@ -40,8 +61,12 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
     }
 
     final repo = ref.read(transactionRepositoryProvider);
+    final transaction = widget.initialTransaction ?? TransactionModel();
+    final now = DateTime.now().toUtc();
 
-    final transaction = TransactionModel()
+    transaction
+      ..id = widget.initialTransaction?.id ?? transaction.id
+      ..remoteId = widget.initialTransaction?.remoteId
       ..title = title
       ..amount = amount
       ..date = _date
@@ -50,19 +75,24 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
       ..paymentMethod = paymentMethod.isEmpty ? null : paymentMethod
       ..payee = payee.isEmpty ? null : payee
       ..note = _noteController.text
-      ..createdAt = DateTime.now();
+      ..createdAt = widget.initialTransaction?.createdAt ?? now
+      ..updatedAt = _isEditing ? now : null;
 
     try {
-      await repo.add(transaction);
+      final saved = _isEditing
+          ? await repo.update(transaction)
+          : await repo.add(transaction);
       ref.invalidate(transactionsProvider);
 
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, saved);
       }
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to save transaction.')),
+        SnackBar(
+          content: Text(_buildErrorMessage(e)),
+        ),
       );
     }
   }
@@ -90,6 +120,18 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
     super.dispose();
   }
 
+  String _buildErrorMessage(Object error) {
+    final message = error.toString();
+
+    if (message.isEmpty) {
+      return _isEditing
+          ? 'Failed to update transaction.'
+          : 'Failed to save transaction.';
+    }
+
+    return message;
+  }
+
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoriesProvider);
@@ -97,7 +139,9 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
     final payeePresetsAsync = ref.watch(payeePresetsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Transaction')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Edit Transaction' : 'Add Transaction'),
+      ),
       body: categoriesAsync.when(
         data: (categories) {
           return paymentMethodPresetsAsync.when(
@@ -217,7 +261,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
 
                         ElevatedButton(
                           onPressed: _save,
-                          child: const Text("Save"),
+                          child: Text(_isEditing ? 'Update' : 'Save'),
                         ),
                       ],
                     ),

@@ -1,7 +1,7 @@
 import 'transaction_model.dart';
 
 extension TransactionMapper on TransactionModel {
-  Map<String, dynamic> toJson(String userId) {
+  Map<String, dynamic> toJson(String userId, {bool includeId = false}) {
     final json = <String, dynamic>{
       'user_id': userId,
       'title': title,
@@ -13,9 +13,10 @@ extension TransactionMapper on TransactionModel {
       'note': note,
       'date': date.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
     };
 
-    if (remoteId != null) {
+    if (includeId && remoteId != null) {
       json['id'] = remoteId;
     }
 
@@ -26,6 +27,7 @@ extension TransactionMapper on TransactionModel {
     final transaction = TransactionModel();
 
     transaction.remoteId = json['id'];
+    transaction.recurringId = json['recurring_id'];
     transaction.title = json['title'];
     transaction.amount = (json['amount'] as num).toDouble();
     transaction.date = DateTime.parse(json['date']);
@@ -37,6 +39,9 @@ extension TransactionMapper on TransactionModel {
     transaction.payee = json['payee'];
     transaction.note = json['note'];
     transaction.createdAt = DateTime.parse(json['created_at']);
+    transaction.updatedAt = json['updated_at'] != null
+        ? DateTime.parse(json['updated_at'])
+        : null;
 
     return transaction;
   }

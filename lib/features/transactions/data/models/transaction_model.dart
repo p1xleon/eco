@@ -9,6 +9,7 @@ class TransactionModel {
   Id id = Isar.autoIncrement;
 
   String? remoteId;
+  String? recurringId;
 
   late String title;
 
@@ -28,4 +29,6 @@ class TransactionModel {
   String? note;
 
   late DateTime createdAt;
+
+  DateTime? updatedAt;
 }

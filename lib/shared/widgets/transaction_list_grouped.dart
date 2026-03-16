@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/utils/group_transactions.dart';
 import '../../features/transactions/data/models/transaction_model.dart';
 import '../../features/transactions/data/providers/transaction_repository_provider.dart';
 import '../../features/transactions/presentation/providers/transaction_provider.dart';
+import 'transaction_card.dart';
 
 class TransactionListGrouped extends ConsumerWidget {
   final List<TransactionModel> transactions;
@@ -18,6 +18,7 @@ class TransactionListGrouped extends ConsumerWidget {
     final months = grouped.entries.toList();
 
     return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 24),
       itemCount: months.length,
       itemBuilder: (context, index) {
         final entry = months[index];
@@ -59,21 +60,21 @@ class _MonthSection extends StatelessWidget {
         ),
 
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
           child: Row(
             children: [
               Text(
                 "+ ₹${income.toStringAsFixed(2)}",
-                style: const TextStyle(
-                  color: Colors.greenAccent,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(width: 16),
               Text(
                 "- ₹${expense.toStringAsFixed(2)}",
-                style: const TextStyle(
-                  color: Colors.deepOrangeAccent,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -95,42 +96,26 @@ class _TransactionTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.read(transactionRepositoryProvider);
-    final isExpense = tx.type == TransactionType.expense;
-    final detailParts = [tx.payee, tx.paymentMethod]
-        .whereType<String>()
-        .where((value) => value.trim().isNotEmpty)
-        .toList();
+    final scheme = Theme.of(context).colorScheme;
 
     return Dismissible(
       key: ValueKey(tx.id),
       direction: DismissDirection.endToStart,
       background: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        decoration: BoxDecoration(
+          color: scheme.error,
+          borderRadius: BorderRadius.circular(24),
+        ),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        color: Colors.red,
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       onDismissed: (_) async {
         await repo.delete(tx.id);
         ref.invalidate(transactionsProvider);
       },
-      child: ListTile(
-        title: Text(tx.title),
-        subtitle: Text(
-          [
-            DateFormat("dd MMM yyyy").format(tx.date),
-            if (detailParts.isNotEmpty) detailParts.join(' • '),
-          ].join('\n'),
-        ),
-        isThreeLine: detailParts.isNotEmpty,
-        trailing: Text(
-          "₹${tx.amount.toStringAsFixed(2)}",
-          style: TextStyle(
-            color: isExpense ? Colors.red : Colors.green,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
+      child: TransactionCard(transaction: tx),
     );
   }
 }
