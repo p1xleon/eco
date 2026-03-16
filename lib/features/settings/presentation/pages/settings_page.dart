@@ -8,6 +8,8 @@ import '../../../../core/theme/theme_mode_setting.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../categories/presentation/pages/categories_page.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
+import '../../../recurring/presentation/pages/recurring_transactions_page.dart';
+import '../../../recurring/presentation/providers/recurring_transaction_provider.dart';
 import '../../../transactions/presentation/providers/transaction_provider.dart';
 import '../providers/transaction_preset_provider.dart';
 import 'transaction_presets_page.dart';
@@ -23,10 +25,12 @@ class SettingsPage extends ConsumerWidget {
     final categoriesAsync = ref.watch(categoriesProvider);
     final paymentMethodPresetsAsync = ref.watch(paymentMethodPresetsProvider);
     final payeePresetsAsync = ref.watch(payeePresetsProvider);
+    final recurringAsync = ref.watch(recurringTransactionsProvider);
     final transactionsAsync = ref.watch(transactionsProvider);
     final scheme = Theme.of(context).colorScheme;
 
     final categoryCount = categoriesAsync.valueOrNull?.length ?? 0;
+    final recurringCount = recurringAsync.valueOrNull?.length ?? 0;
     final transactionCount = transactionsAsync.valueOrNull?.length ?? 0;
     final presetCount =
         (paymentMethodPresetsAsync.valueOrNull?.length ?? 0) +
@@ -70,9 +74,9 @@ class SettingsPage extends ConsumerWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _StatCard(
-                    label: 'Presets',
-                    value: presetCount.toString(),
-                    icon: Icons.tune_outlined,
+                    label: 'Recurring',
+                    value: recurringCount.toString(),
+                    icon: Icons.event_repeat_outlined,
                     color: scheme.secondary,
                   ),
                 ),
@@ -98,12 +102,26 @@ class SettingsPage extends ConsumerWidget {
               _SettingsActionTile(
                 icon: Icons.tune_outlined,
                 title: 'Transaction Presets',
-                subtitle: 'Payment methods and stores / payees',
+                subtitle: '$presetCount saved presets',
                 onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const TransactionPresetsPage(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _SettingsActionTile(
+                icon: Icons.event_repeat_outlined,
+                title: 'Recurring Transactions',
+                subtitle: '$recurringCount template${recurringCount == 1 ? '' : 's'}',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RecurringTransactionsPage(),
                     ),
                   );
                 },
