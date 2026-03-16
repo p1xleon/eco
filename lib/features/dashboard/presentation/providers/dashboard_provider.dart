@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../recurring/domain/services/recurring_transaction_service.dart';
+import '../../../recurring/presentation/providers/recurring_transaction_provider.dart';
 import '../../../transactions/presentation/providers/transaction_provider.dart';
 import '../../../transactions/data/models/transaction_model.dart';
 
@@ -30,3 +32,9 @@ final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
     return DashboardStats(income: income, expense: expense);
   });
 });
+
+final dashboardRecurringProvider =
+    FutureProvider<DashboardRecurringSnapshot>((ref) async {
+      final service = ref.read(recurringTransactionServiceProvider);
+      return service.getDashboardRecurring();
+    });
