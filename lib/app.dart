@@ -13,7 +13,8 @@ class Eco extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeNotifier = ref.watch(themeProvider.notifier);
+    final themeSetting = ref.watch(themeProvider);
+    final themeMode = ref.read(themeProvider.notifier).themeModeFor(themeSetting);
 
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
@@ -32,7 +33,7 @@ class Eco extends ConsumerWidget {
           title: "Finance Tracker",
           theme: AppTheme.light(lightScheme),
           darkTheme: AppTheme.dark(darkScheme),
-          themeMode: themeNotifier.themeMode,
+          themeMode: themeMode,
           home: const AuthGate(),
         );
       },
