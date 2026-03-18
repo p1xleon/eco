@@ -10,8 +10,8 @@ class ThemeNotifier extends StateNotifier<ThemeModeSetting> {
     state = mode;
   }
 
-  ThemeMode get themeMode {
-    switch (state) {
+  ThemeMode themeModeFor(ThemeModeSetting setting) {
+    switch (setting) {
       case ThemeModeSetting.light:
         return ThemeMode.light;
       case ThemeModeSetting.dark:
@@ -20,6 +20,8 @@ class ThemeNotifier extends StateNotifier<ThemeModeSetting> {
         return ThemeMode.system;
     }
   }
+
+  ThemeMode get themeMode => themeModeFor(state);
 }
 
 final themeProvider = StateNotifierProvider<ThemeNotifier, ThemeModeSetting>(
