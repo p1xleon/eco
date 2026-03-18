@@ -322,42 +322,12 @@ class _RecurringTransactionsViewState
   }
 
   Future<double?> _promptForAmount(double? initialAmount) async {
-    final controller = TextEditingController(
-      text: initialAmount?.toStringAsFixed(2) ?? '',
-    );
-
-    final result = await showDialog<double>(
+    return showDialog<double>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Amount'),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Amount'),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final amount = double.tryParse(controller.text.trim());
-              if (amount == null || amount <= 0) {
-                return;
-              }
-
-              Navigator.pop(context, amount);
-            },
-            child: const Text('Confirm'),
-          ),
-        ],
+      builder: (context) => _ConfirmRecurringAmountDialog(
+        initialAmount: initialAmount,
       ),
     );
-
-    controller.dispose();
-    return result;
   }
 
   void _showError(Object error) {
@@ -374,6 +344,72 @@ class _RecurringTransactionsViewState
     }
 
     return message;
+  }
+}
+
+class _ConfirmRecurringAmountDialog extends StatefulWidget {
+  final double? initialAmount;
+
+  const _ConfirmRecurringAmountDialog({required this.initialAmount});
+
+  @override
+  State<_ConfirmRecurringAmountDialog> createState() =>
+      _ConfirmRecurringAmountDialogState();
+}
+
+class _ConfirmRecurringAmountDialogState
+    extends State<_ConfirmRecurringAmountDialog> {
+  late final TextEditingController _controller;
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: widget.initialAmount?.toStringAsFixed(2) ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Confirm Amount'),
+      content: TextField(
+        controller: _controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          labelText: 'Amount',
+          errorText: _errorText,
+        ),
+        autofocus: true,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final amount = double.tryParse(_controller.text.trim());
+            if (amount == null || amount <= 0) {
+              setState(() {
+                _errorText = 'Enter a valid amount';
+              });
+              return;
+            }
+
+            Navigator.pop(context, amount);
+          },
+          child: const Text('Confirm'),
+        ),
+      ],
+    );
   }
 }
 
