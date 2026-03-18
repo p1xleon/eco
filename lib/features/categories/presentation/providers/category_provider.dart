@@ -9,3 +9,10 @@ final categoriesProvider = FutureProvider<List<CategoryModel>>((ref) async {
   final repo = ref.read(categoryRepositoryProvider);
   return repo.getAll();
 });
+
+final categoriesByIdProvider = FutureProvider<Map<int, CategoryModel>>((
+  ref,
+) async {
+  final categories = await ref.watch(categoriesProvider.future);
+  return {for (final category in categories) category.id: category};
+});

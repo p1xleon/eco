@@ -16,6 +16,12 @@ class CategoryRepository {
     });
   }
 
+  Future<void> update(CategoryModel category) async {
+    await _isar.writeTxn(() async {
+      await _isar.categoryModels.put(category);
+    });
+  }
+
   Future<void> delete(int id) async {
     await _isar.writeTxn(() async {
       await _isar.categoryModels.delete(id);
