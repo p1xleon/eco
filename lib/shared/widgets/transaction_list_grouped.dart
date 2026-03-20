@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/privacy/transaction_visibility.dart';
 import '../../core/utils/group_transactions.dart';
+import '../../features/categories/data/models/category_model.dart';
+import '../../features/categories/presentation/providers/category_provider.dart';
 import '../../features/transactions/data/models/transaction_model.dart';
 import '../../features/transactions/data/providers/transaction_repository_provider.dart';
 import '../../features/transactions/presentation/providers/transaction_provider.dart';
@@ -15,56 +18,69 @@ class TransactionListGrouped extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final grouped = groupTransactionsByMonth(transactions);
-    final months = grouped.entries.toList();
+    final categoriesByIdAsync = ref.watch(categoriesByIdProvider);
+    final visibility = ref.watch(transactionVisibilityProvider);
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 24),
-      itemCount: months.length,
-      itemBuilder: (context, index) {
-        final entry = months[index];
-
-        return _MonthSection(month: entry.key, transactions: entry.value);
-      },
+    return categoriesByIdAsync.when(
+      data: (categoriesById) => ListView.builder(
+        padding: const EdgeInsets.only(bottom: 24),
+        itemCount: grouped.length,
+        itemBuilder: (context, index) {
+          final group = grouped[index];
+          return _MonthSection(
+            group: group,
+            categoriesById: categoriesById,
+            visibility: visibility,
+          );
+        },
+      ),
+      loading: () => ListView.builder(
+        padding: const EdgeInsets.only(bottom: 24),
+        itemCount: transactions.length,
+        itemBuilder: (context, index) =>
+            TransactionCard(transaction: transactions[index]),
+      ),
+      error: (_, _) => ListView.builder(
+        padding: const EdgeInsets.only(bottom: 24),
+        itemCount: transactions.length,
+        itemBuilder: (context, index) =>
+            TransactionCard(transaction: transactions[index]),
+      ),
     );
   }
 }
 
 class _MonthSection extends StatelessWidget {
-  final String month;
-  final List<TransactionModel> transactions;
+  final TransactionMonthGroup group;
+  final Map<int, CategoryModel> categoriesById;
+  final TransactionVisibilityState visibility;
 
-  const _MonthSection({required this.month, required this.transactions});
+  const _MonthSection({
+    required this.group,
+    required this.categoriesById,
+    required this.visibility,
+  });
 
   @override
   Widget build(BuildContext context) {
-    double income = 0;
-    double expense = 0;
-
-    for (final tx in transactions) {
-      if (tx.type == TransactionType.income) {
-        income += tx.amount;
-      } else {
-        expense += tx.amount;
-      }
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
           child: Text(
-            month,
+            group.title,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
-
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
           child: Row(
             children: [
               Text(
-                "+ ₹${income.toStringAsFixed(2)}",
+                visibility.displayAmount(
+                  "+ ₹${group.income.toStringAsFixed(2)}",
+                ),
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.w600,
@@ -72,7 +88,9 @@ class _MonthSection extends StatelessWidget {
               ),
               const SizedBox(width: 16),
               Text(
-                "- ₹${expense.toStringAsFixed(2)}",
+                visibility.displayAmount(
+                  "- ₹${group.expense.toStringAsFixed(2)}",
+                ),
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.error,
                   fontWeight: FontWeight.w600,
@@ -81,8 +99,10 @@ class _MonthSection extends StatelessWidget {
             ],
           ),
         ),
-
-        ...transactions.map((tx) => _TransactionTile(tx: tx)),
+        ...group.transactions.map(
+          (tx) =>
+              _TransactionTile(tx: tx, category: categoriesById[tx.categoryId]),
+        ),
       ],
     );
   }
@@ -90,8 +110,9 @@ class _MonthSection extends StatelessWidget {
 
 class _TransactionTile extends ConsumerWidget {
   final TransactionModel tx;
+  final CategoryModel? category;
 
-  const _TransactionTile({required this.tx});
+  const _TransactionTile({required this.tx, required this.category});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -111,11 +132,41 @@ class _TransactionTile extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: const Icon(Icons.delete, color: Colors.white),
       ),
+      confirmDismiss: (_) => _confirmDeleteTransaction(context),
       onDismissed: (_) async {
-        await repo.delete(tx.id);
-        ref.invalidate(transactionsProvider);
+        try {
+          await repo.delete(tx.id);
+          ref.invalidate(transactionsProvider);
+        } catch (error) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete transaction: $error')),
+          );
+        }
       },
-      child: TransactionCard(transaction: tx),
+      child: TransactionCard(transaction: tx, category: category),
     );
   }
+}
+
+Future<bool> _confirmDeleteTransaction(BuildContext context) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Delete Transaction'),
+      content: const Text('Are you sure you want to delete this transaction?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Delete', style: TextStyle(color: Colors.red)),
+        ),
+      ],
+    ),
+  );
+
+  return confirmed == true;
 }
