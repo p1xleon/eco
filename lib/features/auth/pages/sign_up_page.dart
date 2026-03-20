@@ -75,9 +75,9 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              scheme.secondaryContainer.withValues(alpha: 0.90),
+              scheme.secondaryContainer.withValues(alpha: 0.34),
               scheme.surface,
-              scheme.primaryContainer.withValues(alpha: 0.80),
+              scheme.primaryContainer.withValues(alpha: 0.42),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -98,7 +98,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
                     Container(
                       padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(
-                        color: scheme.surface.withValues(alpha: 0.88),
+                        color: scheme.surface.withValues(alpha: 0.94),
                         borderRadius: BorderRadius.circular(28),
                         border: Border.all(
                           color: scheme.outlineVariant.withValues(alpha: 0.35),

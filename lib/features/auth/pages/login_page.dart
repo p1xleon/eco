@@ -60,9 +60,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              scheme.primaryContainer.withValues(alpha: 0.95),
+              scheme.primaryContainer.withValues(alpha: 0.48),
               scheme.surface,
-              scheme.secondaryContainer.withValues(alpha: 0.75),
+              scheme.secondaryContainer.withValues(alpha: 0.30),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -83,7 +83,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     Container(
                       padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(
-                        color: scheme.surface.withValues(alpha: 0.88),
+                        color: scheme.surface.withValues(alpha: 0.94),
                         borderRadius: BorderRadius.circular(28),
                         border: Border.all(
                           color: scheme.outlineVariant.withValues(alpha: 0.35),
@@ -216,7 +216,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
                                 color: scheme.surfaceContainerHighest.withValues(
-                                  alpha: 0.55,
+                                  alpha: 0.42,
                                 ),
                                 borderRadius: BorderRadius.circular(18),
                               ),
