@@ -46,15 +46,21 @@ const TransactionModelSchema = CollectionSchema(
       name: r'remoteId',
       type: IsarType.string,
     ),
-    r'title': PropertySchema(id: 9, name: r'title', type: IsarType.string),
+    r'status': PropertySchema(
+      id: 9,
+      name: r'status',
+      type: IsarType.byte,
+      enumMap: _TransactionModelstatusEnumValueMap,
+    ),
+    r'title': PropertySchema(id: 10, name: r'title', type: IsarType.string),
     r'type': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'type',
       type: IsarType.byte,
       enumMap: _TransactionModeltypeEnumValueMap,
     ),
     r'updatedAt': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
@@ -130,9 +136,10 @@ void _transactionModelSerialize(
   writer.writeString(offsets[6], object.paymentMethod);
   writer.writeString(offsets[7], object.recurringId);
   writer.writeString(offsets[8], object.remoteId);
-  writer.writeString(offsets[9], object.title);
-  writer.writeByte(offsets[10], object.type.index);
-  writer.writeDateTime(offsets[11], object.updatedAt);
+  writer.writeByte(offsets[9], object.status.index);
+  writer.writeString(offsets[10], object.title);
+  writer.writeByte(offsets[11], object.type.index);
+  writer.writeDateTime(offsets[12], object.updatedAt);
 }
 
 TransactionModel _transactionModelDeserialize(
@@ -152,11 +159,14 @@ TransactionModel _transactionModelDeserialize(
   object.paymentMethod = reader.readStringOrNull(offsets[6]);
   object.recurringId = reader.readStringOrNull(offsets[7]);
   object.remoteId = reader.readStringOrNull(offsets[8]);
-  object.title = reader.readString(offsets[9]);
+  object.status =
+      _TransactionModelstatusValueEnumMap[reader.readByteOrNull(offsets[9])] ??
+      TransactionStatus.paid;
+  object.title = reader.readString(offsets[10]);
   object.type =
-      _TransactionModeltypeValueEnumMap[reader.readByteOrNull(offsets[10])] ??
+      _TransactionModeltypeValueEnumMap[reader.readByteOrNull(offsets[11])] ??
       TransactionType.income;
-  object.updatedAt = reader.readDateTimeOrNull(offsets[11]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[12]);
   return object;
 }
 
@@ -186,20 +196,31 @@ P _transactionModelDeserializeProp<P>(
     case 8:
       return (reader.readStringOrNull(offset)) as P;
     case 9:
-      return (reader.readString(offset)) as P;
+      return (_TransactionModelstatusValueEnumMap[reader.readByteOrNull(
+                offset,
+              )] ??
+              TransactionStatus.paid)
+          as P;
     case 10:
+      return (reader.readString(offset)) as P;
+    case 11:
       return (_TransactionModeltypeValueEnumMap[reader.readByteOrNull(
                 offset,
               )] ??
               TransactionType.income)
           as P;
-    case 11:
+    case 12:
       return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
   }
 }
 
+const _TransactionModelstatusEnumValueMap = {'paid': 0, 'pending': 1};
+const _TransactionModelstatusValueEnumMap = {
+  0: TransactionStatus.paid,
+  1: TransactionStatus.pending,
+};
 const _TransactionModeltypeEnumValueMap = {'income': 0, 'expense': 1};
 const _TransactionModeltypeValueEnumMap = {
   0: TransactionType.income,
@@ -1394,6 +1415,61 @@ extension TransactionModelQueryFilter
   }
 
   QueryBuilder<TransactionModel, TransactionModel, QAfterFilterCondition>
+  statusEqualTo(TransactionStatus value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'status', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterFilterCondition>
+  statusGreaterThan(TransactionStatus value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'status',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterFilterCondition>
+  statusLessThan(TransactionStatus value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'status',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterFilterCondition>
+  statusBetween(
+    TransactionStatus lower,
+    TransactionStatus upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'status',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterFilterCondition>
   titleEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
@@ -1794,6 +1870,20 @@ extension TransactionModelQuerySortBy
     });
   }
 
+  QueryBuilder<TransactionModel, TransactionModel, QAfterSortBy>
+  sortByStatus() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'status', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterSortBy>
+  sortByStatusDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'status', Sort.desc);
+    });
+  }
+
   QueryBuilder<TransactionModel, TransactionModel, QAfterSortBy> sortByTitle() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'title', Sort.asc);
@@ -1973,6 +2063,20 @@ extension TransactionModelQuerySortThenBy
     });
   }
 
+  QueryBuilder<TransactionModel, TransactionModel, QAfterSortBy>
+  thenByStatus() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'status', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterSortBy>
+  thenByStatusDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'status', Sort.desc);
+    });
+  }
+
   QueryBuilder<TransactionModel, TransactionModel, QAfterSortBy> thenByTitle() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'title', Sort.asc);
@@ -2083,6 +2187,13 @@ extension TransactionModelQueryWhereDistinct
     });
   }
 
+  QueryBuilder<TransactionModel, TransactionModel, QDistinct>
+  distinctByStatus() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'status');
+    });
+  }
+
   QueryBuilder<TransactionModel, TransactionModel, QDistinct> distinctByTitle({
     bool caseSensitive = true,
   }) {
@@ -2167,6 +2278,13 @@ extension TransactionModelQueryProperty
   QueryBuilder<TransactionModel, String?, QQueryOperations> remoteIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'remoteId');
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionStatus, QQueryOperations>
+  statusProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'status');
     });
   }
 

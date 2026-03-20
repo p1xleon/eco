@@ -4,6 +4,8 @@ part 'transaction_model.g.dart';
 
 enum TransactionType { income, expense }
 
+enum TransactionStatus { paid, pending }
+
 @collection
 class TransactionModel {
   Id id = Isar.autoIncrement;
@@ -19,6 +21,9 @@ class TransactionModel {
 
   @enumerated
   late TransactionType type;
+
+  @enumerated
+  TransactionStatus status = TransactionStatus.paid;
 
   late int categoryId;
 

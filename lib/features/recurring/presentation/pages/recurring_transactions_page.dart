@@ -426,8 +426,9 @@ class _DueSectionHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: scheme.primaryContainer.withValues(alpha: 0.55),
+        color: scheme.primaryContainer.withValues(alpha: 0.34),
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.30)),
       ),
       child: Row(
         children: [

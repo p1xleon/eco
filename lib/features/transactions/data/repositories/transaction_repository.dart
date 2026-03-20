@@ -18,6 +18,7 @@ class TransactionRepository {
     }
 
     try {
+      await _uploadPendingLocalTransactions();
       final remoteTransactions = await fetchRemoteTransactions();
       await _syncLocalCache(remoteTransactions);
     } catch (_) {
@@ -27,10 +28,34 @@ class TransactionRepository {
     return _getLocalTransactions();
   }
 
+  Future<void> _uploadPendingLocalTransactions() async {
+    final unsyncedLocal = await _isar.transactionModels
+        .filter()
+        .remoteIdIsNull()
+        .findAll();
+
+    for (final local in unsyncedLocal) {
+      try {
+        final saved = await uploadTransaction(local);
+        saved.id = local.id;
+        saved.recurringId = local.recurringId;
+        saved.status = local.status;
+
+        await _isar.writeTxn(() async {
+          await _isar.transactionModels.put(saved);
+        });
+      } catch (_) {
+        // Keep unsynced local entries intact and retry on the next sync.
+      }
+    }
+  }
+
   Future<TransactionModel> add(TransactionModel tx) async {
     if (remote.isAuthenticated) {
       try {
         final saved = await uploadTransaction(tx);
+        saved.status = tx.status;
+        saved.recurringId = tx.recurringId;
         await _isar.writeTxn(() async {
           await _isar.transactionModels.put(saved);
         });
@@ -49,6 +74,8 @@ class TransactionRepository {
     if (remote.isAuthenticated && tx.remoteId != null) {
       final saved = await updateRemoteTransaction(tx);
       saved.id = tx.id;
+      saved.status = tx.status;
+      saved.recurringId = tx.recurringId;
 
       await _isar.writeTxn(() async {
         await _isar.transactionModels.put(saved);
@@ -94,11 +121,19 @@ class TransactionRepository {
       for (final tx in syncedLocal)
         if (tx.remoteId != null) tx.remoteId!: tx.recurringId,
     };
+    final statusByRemoteId = <String, TransactionStatus>{
+      for (final tx in syncedLocal)
+        if (tx.remoteId != null) tx.remoteId!: tx.status,
+    };
 
     for (final tx in transactions) {
       final recurringId = recurringIdsByRemoteId[tx.remoteId];
       if (recurringId != null) {
         tx.recurringId = recurringId;
+      }
+      final status = statusByRemoteId[tx.remoteId];
+      if (status != null) {
+        tx.status = status;
       }
     }
 

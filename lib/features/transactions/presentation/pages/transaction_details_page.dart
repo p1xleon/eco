@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../data/models/transaction_model.dart';
@@ -19,7 +20,8 @@ class TransactionDetailsPage extends ConsumerStatefulWidget {
       _TransactionDetailsPageState();
 }
 
-class _TransactionDetailsPageState extends ConsumerState<TransactionDetailsPage> {
+class _TransactionDetailsPageState
+    extends ConsumerState<TransactionDetailsPage> {
   late TransactionModel _transaction;
 
   @override
@@ -30,14 +32,34 @@ class _TransactionDetailsPageState extends ConsumerState<TransactionDetailsPage>
 
   @override
   Widget build(BuildContext context) {
+    final visibility = ref.watch(transactionVisibilityProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final isExpense = _transaction.type == TransactionType.expense;
     final amountColor = isExpense ? Colors.red : Colors.green;
+    final isPending = _transaction.status == TransactionStatus.pending;
+
+    if (visibility.isInvisible &&
+        !visibility.isTransactionVisible(_transaction)) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Transaction Details')),
+        body: const _TransactionDetailsEmptyState(
+          message: 'This transaction is hidden while invisible mode is active.',
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transaction Details'),
         actions: [
+          IconButton(
+            icon: Icon(
+              isPending
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.hourglass_bottom_rounded,
+            ),
+            onPressed: _toggleStatus,
+          ),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             onPressed: _editTransaction,
@@ -54,18 +76,44 @@ class _TransactionDetailsPageState extends ConsumerState<TransactionDetailsPage>
           final category = categories
               .where((item) => item.id == _transaction.categoryId)
               .firstOrNull;
+          final categoryName = visibility.displayCategory(
+            category?.name ?? 'Unknown',
+            seed:
+                'category:${_transaction.categoryId}:${category?.name ?? 'Unknown'}',
+          );
+          final title = visibility.displayTitle(_transaction);
+          final amount = visibility.displayAmount(
+            '${isExpense ? '-' : '+'} ₹${_transaction.amount.toStringAsFixed(2)}',
+          );
+          final paymentMethod = visibility.displayText(
+            _transaction.paymentMethod,
+            seed:
+                'payment:${_transaction.id}:${_transaction.paymentMethod ?? ''}',
+          );
+          final payee = visibility.displayText(
+            _transaction.payee,
+            seed: 'payee:${_transaction.id}:${_transaction.payee ?? ''}',
+          );
+          final note = visibility.displayText(
+            _transaction.note,
+            seed: 'note:${_transaction.id}:${_transaction.note ?? ''}',
+          );
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Colors.grey, width: 1),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _transaction.title,
+                        title,
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),
                       const SizedBox(height: 8),
@@ -74,7 +122,7 @@ class _TransactionDetailsPageState extends ConsumerState<TransactionDetailsPage>
                         children: [
                           Flexible(
                             child: Text(
-                              '${isExpense ? '-' : '+'} ₹${_transaction.amount.toStringAsFixed(2)}',
+                              amount,
                               style: Theme.of(context).textTheme.headlineMedium
                                   ?.copyWith(
                                     color: amountColor,
@@ -100,6 +148,30 @@ class _TransactionDetailsPageState extends ConsumerState<TransactionDetailsPage>
                               ),
                             ),
                           ),
+                          if (isPending) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.tertiaryContainer,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                'Pending',
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onTertiaryContainer,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -113,17 +185,22 @@ class _TransactionDetailsPageState extends ConsumerState<TransactionDetailsPage>
                   _DetailRow(
                     icon: Icons.category_outlined,
                     label: 'Category',
-                    value: category?.name ?? 'Unknown',
+                    value: categoryName,
+                  ),
+                  _DetailRow(
+                    icon: Icons.flag_outlined,
+                    label: 'Status',
+                    value: isPending ? 'Pending' : 'Paid',
                   ),
                   _DetailRow(
                     icon: Icons.payment_outlined,
                     label: 'Payment Method',
-                    value: _fallback(_transaction.paymentMethod),
+                    value: paymentMethod,
                   ),
                   _DetailRow(
                     icon: Icons.store_outlined,
                     label: 'Store / Payment To',
-                    value: _fallback(_transaction.payee),
+                    value: payee,
                   ),
                   _DetailRow(
                     icon: Icons.calendar_today_outlined,
@@ -144,8 +221,8 @@ class _TransactionDetailsPageState extends ConsumerState<TransactionDetailsPage>
                       icon: Icons.update_outlined,
                       label: 'Updated At',
                       value: DateFormat(
-                          'dd MMM yyyy, hh:mm a',
-                        ).format(_transaction.updatedAt!.toLocal()),
+                        'dd MMM yyyy, hh:mm a',
+                      ).format(_transaction.updatedAt!.toLocal()),
                     ),
                 ],
               ),
@@ -156,7 +233,7 @@ class _TransactionDetailsPageState extends ConsumerState<TransactionDetailsPage>
                   _DetailRow(
                     icon: Icons.notes_outlined,
                     label: 'Note',
-                    value: _fallback(_transaction.note),
+                    value: note,
                     multiline: true,
                   ),
                 ],
@@ -208,7 +285,9 @@ class _TransactionDetailsPageState extends ConsumerState<TransactionDetailsPage>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Transaction'),
-        content: const Text('Are you sure you want to delete this transaction?'),
+        content: const Text(
+          'Are you sure you want to delete this transaction?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -236,6 +315,30 @@ class _TransactionDetailsPageState extends ConsumerState<TransactionDetailsPage>
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to delete transaction: $e')),
+      );
+    }
+  }
+
+  Future<void> _toggleStatus() async {
+    final repo = ref.read(transactionRepositoryProvider);
+    _transaction
+      ..status = _transaction.status == TransactionStatus.pending
+          ? TransactionStatus.paid
+          : TransactionStatus.pending
+      ..updatedAt = DateTime.now().toUtc();
+
+    try {
+      final updated = await repo.update(_transaction);
+      ref.invalidate(transactionsProvider);
+
+      if (!mounted) return;
+      setState(() {
+        _transaction = updated;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update transaction status: $e')),
       );
     }
   }
@@ -272,6 +375,22 @@ class _TransactionDetailsPageState extends ConsumerState<TransactionDetailsPage>
   }
 }
 
+class _TransactionDetailsEmptyState extends StatelessWidget {
+  final String message;
+
+  const _TransactionDetailsEmptyState({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(message, textAlign: TextAlign.center),
+      ),
+    );
+  }
+}
+
 class _DetailSection extends StatelessWidget {
   final String title;
   final List<Widget> children;
@@ -281,6 +400,10 @@ class _DetailSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey, width: 1),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -342,10 +465,7 @@ class _DetailRow extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
+            child: Text(value, style: Theme.of(context).textTheme.bodyLarge),
           ),
         ],
       ),

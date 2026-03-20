@@ -8,6 +8,7 @@ extension TransactionMapper on TransactionModel {
       'amount': amount,
       'type': type.name,
       'category_id': categoryId,
+      'status': status.name,
       'payment_method': paymentMethod,
       'payee': payee,
       'note': note,
@@ -34,6 +35,10 @@ extension TransactionMapper on TransactionModel {
     transaction.type = json['type'] == 'income'
         ? TransactionType.income
         : TransactionType.expense;
+    transaction.status = switch (json['status']) {
+      'pending' => TransactionStatus.pending,
+      _ => TransactionStatus.paid,
+    };
     transaction.categoryId = json['category_id'];
     transaction.paymentMethod = json['payment_method'];
     transaction.payee = json['payee'];

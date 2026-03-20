@@ -33,6 +33,30 @@ class TransactionPresetRepository {
     });
   }
 
+  Future<void> update(int id, TransactionPresetType type, String value) async {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return;
+
+    final existing = await getByType(type);
+    final hasDuplicate = existing.any(
+      (preset) =>
+          preset.id != id &&
+          preset.value.toLowerCase() == trimmed.toLowerCase(),
+    );
+    if (hasDuplicate) return;
+
+    final preset = await _isar.transactionPresetModels.get(id);
+    if (preset == null) return;
+
+    preset
+      ..type = type
+      ..value = trimmed;
+
+    await _isar.writeTxn(() async {
+      await _isar.transactionPresetModels.put(preset);
+    });
+  }
+
   Future<void> delete(int id) async {
     await _isar.writeTxn(() async {
       await _isar.transactionPresetModels.delete(id);

@@ -17,8 +17,52 @@ class TransactionFilterNotifier extends StateNotifier<TransactionFilter> {
     state = state.copyWith(categoryId: id);
   }
 
+  void setPaymentMethod(String? value) {
+    state = state.copyWith(paymentMethod: value);
+  }
+
+  void setPayee(String? value) {
+    state = state.copyWith(payee: value);
+  }
+
+  void setAmountRange(double? min, double? max) {
+    state = state.copyWith(minAmount: min, maxAmount: max);
+  }
+
+  void setRecurring(RecurringFilter value) {
+    state = state.copyWith(recurring: value);
+  }
+
+  void setSyncStatus(SyncStatusFilter value) {
+    state = state.copyWith(syncStatus: value);
+  }
+
+  void setNotes(NotesFilter value) {
+    state = state.copyWith(notes: value);
+  }
+
   void setDateRange(DateTime? start, DateTime? end) {
     state = state.copyWith(startDate: start, endDate: end);
+  }
+
+  void setFilter(TransactionFilter filter) {
+    state = filter;
+  }
+
+  void clearAdvanced() {
+    state = state.copyWith(
+      type: null,
+      categoryId: null,
+      paymentMethod: null,
+      payee: null,
+      minAmount: null,
+      maxAmount: null,
+      recurring: RecurringFilter.all,
+      syncStatus: SyncStatusFilter.all,
+      notes: NotesFilter.all,
+      startDate: null,
+      endDate: null,
+    );
   }
 
   void clear() {
