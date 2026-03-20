@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'core/database/isar_service.dart';
 import 'core/database/category_seeder.dart';
+import 'core/theme/theme_provider.dart';
+import 'core/theme/theme_storage.dart';
 import 'core/database/transaction_preset_seeder.dart';
 
 Future<void> main() async {
@@ -32,5 +34,14 @@ Future<void> main() async {
     anonKey: supabaseAnonKey,
   );
 
-  runApp(const ProviderScope(child: Eco()));
+  final initialTheme = await ThemeStorage.load();
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        themeProvider.overrideWith((ref) => ThemeNotifier(initialTheme)),
+      ],
+      child: const Eco(),
+    ),
+  );
 }
