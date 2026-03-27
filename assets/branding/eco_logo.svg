@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="220" fill="#f6f6f4"/>
+  <g transform="translate(118 170)">
+    <path
+      d="M144 140C140 95 169 63 222 52L619 0C684 -10 743 39 752 104L767 210 144 140Z"
+      fill="#666666"
+    />
+    <path
+      d="M116 166h544c82 0 148 66 148 148v271c0 89-72 161-161 161H151C68 746 0 678 0 595V282c0-64 52-116 116-116Z"
+      fill="#fafafa"
+      stroke="#595959"
+      stroke-width="26"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M66 218c78 54 224 78 438 78h182c50 0 89 33 108 72"
+      fill="none"
+      stroke="#cfcfcf"
+      stroke-width="10"
+      stroke-linecap="round"
+    />
+    <path
+      d="M622 377h134c83 0 150 67 150 150v81c0 97-79 176-176 176H539c-56 0-102-46-102-102v-41c0-115 93-208 208-208Z"
+      fill="#fbfbfb"
+      stroke="#595959"
+      stroke-width="24"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M780 404c35 28 56 70 56 117v81c0 67-34 126-86 161"
+      fill="none"
+      stroke="#dddddd"
+      stroke-width="8"
+      stroke-linecap="round"
+    />
+    <path
+      d="M82 609l366 73"
+      fill="none"
+      stroke="#bbbbbb"
+      stroke-width="8"
+      stroke-linecap="round"
+      stroke-dasharray="34 28"
+    />
+    <text
+      x="134"
+      y="459"
+      fill="#555555"
+      font-family="Arial, Helvetica, sans-serif"
+      font-size="228"
+      font-weight="700"
+      letter-spacing="-8"
+    >eco</text>
+    <circle cx="595" cy="661" r="54" fill="#fdfdfd" stroke="#595959" stroke-width="16"/>
+    <circle cx="595" cy="661" r="27" fill="#9b9b9b"/>
+    <path
+      d="M66 245c-6 27-10 56-10 87v239c0 55 19 105 51 145"
+      fill="none"
+      stroke="#d8d8d8"
+      stroke-width="10"
+      stroke-linecap="round"
+    />
+  </g>
+</svg>
