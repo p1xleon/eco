@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/privacy/transaction_visibility.dart';
 import '../../features/analytics/presentation/pages/analytics_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/transactions/presentation/pages/add_transaction_page.dart';
 import '../../features/transactions/presentation/pages/transactions_page.dart';
+import '../../features/transactions/presentation/providers/transaction_provider.dart';
 
-class AppShell extends StatefulWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends ConsumerState<AppShell> {
   int index = 0;
 
   final pages = const [
@@ -29,12 +32,46 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
+  void _cycleVisibilityMode() {
+    final visibility = ref.read(transactionVisibilityProvider);
+    final notifier = ref.read(transactionVisibilityProvider.notifier);
+    final transactions = ref.read(transactionsProvider).valueOrNull ?? const [];
+    final nextMode = switch (visibility.mode) {
+      TransactionVisibilityMode.normal => TransactionVisibilityMode.masked,
+      TransactionVisibilityMode.masked => TransactionVisibilityMode.invisible,
+      TransactionVisibilityMode.invisible => TransactionVisibilityMode.normal,
+    };
+
+    notifier.setMode(nextMode, existingTransactions: transactions);
+
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Transaction visibility: ${_modeLabel(nextMode)}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
+  String _modeLabel(TransactionVisibilityMode mode) {
+    return switch (mode) {
+      TransactionVisibilityMode.normal => 'Normal',
+      TransactionVisibilityMode.masked => 'Masked',
+      TransactionVisibilityMode.invisible => 'Invisible',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: pages[index],
-
       floatingActionButton: FloatingActionButton(
+        shape: CircleBorder(),
         onPressed: () {
           Navigator.push(
             context,
@@ -47,7 +84,7 @@ class _AppShellState extends State<AppShell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: onTap,
-        destinations: const [
+        destinations: [
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
             label: 'Dashboard',
@@ -61,7 +98,11 @@ class _AppShellState extends State<AppShell> {
             label: 'Analytics',
           ),
           NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
+            icon: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onLongPress: _cycleVisibilityMode,
+              child: const Icon(Icons.settings_outlined),
+            ),
             label: 'Settings',
           ),
         ],
