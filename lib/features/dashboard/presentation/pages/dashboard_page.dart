@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../recurring/presentation/pages/recurring_transactions_page.dart';
 import '../../../recurring/presentation/providers/recurring_transaction_provider.dart';
 import '../../../recurring/domain/services/recurring_transaction_service.dart';
@@ -16,86 +17,127 @@ class DashboardPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final visibility = ref.watch(transactionVisibilityProvider);
     final statsAsync = ref.watch(dashboardStatsProvider);
-    final transactionsAsync = ref.watch(transactionsProvider);
+    final transactionsAsync = ref.watch(visibleTransactionsProvider);
+
+    if (visibility.isInvisible) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Dashboard")),
+        body: RefreshIndicator(
+          onRefresh: () => _refreshDashboard(ref),
+          child: const _DashboardEmptyState(
+            title: 'Dashboard Hidden',
+            message:
+                'Invisible mode hides existing transaction activity. Add a new transaction to see it in the Transactions tab.',
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text("Dashboard")),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          statsAsync.when(
-            data: (stats) {
-              return Column(
-                children: [
-                  _BalanceCard(balance: stats.balance),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _SummaryCard(
-                          label: "Income",
-                          value: stats.income,
-                          color: Colors.green,
+      body: RefreshIndicator(
+        onRefresh: () => _refreshDashboard(ref),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: [
+            statsAsync.when(
+              data: (stats) {
+                return Column(
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Overview',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _SummaryCard(
-                          label: "Expense",
-                          value: stats.expense,
-                          color: Colors.red,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _SummaryCard(
+                            label: "Expense",
+                            value: visibility.displayAmount(
+                              '₹${stats.expense.toStringAsFixed(2)}',
+                            ),
+                            color: Colors.red,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-            loading: () => const CircularProgressIndicator(),
-            error: (e, _) => Text(e.toString()),
-          ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _SummaryCard(
+                            label: "Income",
+                            value: visibility.displayAmount(
+                              '₹${stats.income.toStringAsFixed(2)}',
+                            ),
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Text(e.toString()),
+            ),
 
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          const Padding(
-            padding: EdgeInsets.only(bottom: 24),
-            child: _DashboardRecurringSection(),
-          ),
+            const Padding(
+              padding: EdgeInsets.only(bottom: 24),
+              child: _DashboardRecurringSection(),
+            ),
 
-          const Text(
-            "Recent Transactions",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+            const Text(
+              "Recent Transactions",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
 
-          const SizedBox(height: 12),
+            const SizedBox(height: 12),
 
-          transactionsAsync.when(
-            data: (transactions) {
-              final recent = transactions.take(5).toList();
+            transactionsAsync.when(
+              data: (transactions) {
+                final recent = transactions.take(5).toList();
 
-              if (recent.isEmpty) {
-                return const Text("No transactions yet");
-              }
+                if (recent.isEmpty) {
+                  return const Text("No transactions yet");
+                }
 
-              return Column(
-                children: recent
-                    .map(
-                      (tx) => TransactionCard(
-                        transaction: tx,
-                        margin: const EdgeInsets.only(bottom: 12),
-                      ),
-                    )
-                    .toList(),
-              );
-            },
-            loading: () => const CircularProgressIndicator(),
-            error: (e, _) => Text(e.toString()),
-          ),
-        ],
+                return Column(
+                  children: recent
+                      .map(
+                        (tx) => TransactionCard(
+                          transaction: tx,
+                          margin: const EdgeInsets.only(bottom: 12),
+                        ),
+                      )
+                      .toList(),
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Text(e.toString()),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+Future<void> _refreshDashboard(WidgetRef ref) async {
+  ref.invalidate(dashboardRecurringProvider);
+  ref.invalidate(recurringTransactionsProvider);
+  ref.invalidate(dueRecurringTransactionsProvider);
+  await Future.wait([
+    refreshTransactions(ref),
+    ref.read(recurringTransactionsProvider.future),
+  ]);
 }
 
 class _DashboardRecurringSection extends ConsumerWidget {
@@ -103,8 +145,16 @@ class _DashboardRecurringSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final visibility = ref.watch(transactionVisibilityProvider);
     final recurringAsync = ref.watch(dashboardRecurringProvider);
     final scheme = Theme.of(context).colorScheme;
+
+    if (visibility.isMasked) {
+      return const _DashboardMaskedNoticeCard(
+        title: 'Recurring',
+        message: 'Recurring details are hidden in masked mode.',
+      );
+    }
 
     return Card(
       child: Padding(
@@ -165,24 +215,69 @@ class _DashboardRecurringContent extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final dateFormat = DateFormat('dd MMM');
     final groups = [snapshot.overdue, snapshot.dueToday, snapshot.upcoming];
-    final visibleGroups = groups.where((group) => group.totalCount > 0).toList();
+    final visibleGroups = groups
+        .where((group) => group.totalCount > 0)
+        .toList();
+    final totalVisibleCount = visibleGroups.fold<int>(
+      0,
+      (sum, group) => sum + group.totalCount,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Icon(Icons.event_repeat_rounded, color: scheme.primary),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Recurring',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                scheme.primaryContainer.withValues(alpha: 0.46),
+                scheme.secondaryContainer.withValues(alpha: 0.24),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-          ],
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: scheme.outlineVariant.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: scheme.surface.withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(Icons.event_repeat_rounded, color: scheme.primary),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Recurring',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      snapshot.isEmpty
+                          ? 'Nothing needs attention right now.'
+                          : '$totalVisibleCount scheduled item${totalVisibleCount == 1 ? '' : 's'} in view',
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 14),
         if (snapshot.isEmpty) ...[
           Text(
             'Recurring — No bills due soon',
@@ -196,9 +291,26 @@ class _DashboardRecurringContent extends StatelessWidget {
             ),
           ],
         ] else ...[
-          Text(
-            'A few recurring items from each status bucket are shown below.',
-            style: TextStyle(color: scheme.onSurfaceVariant),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _RecurringOverviewPill(
+                label: 'Overdue',
+                count: snapshot.overdue.totalCount,
+                color: scheme.error,
+              ),
+              _RecurringOverviewPill(
+                label: 'Due Today',
+                count: snapshot.dueToday.totalCount,
+                color: scheme.primary,
+              ),
+              _RecurringOverviewPill(
+                label: 'Upcoming',
+                count: snapshot.upcoming.totalCount,
+                color: scheme.tertiary,
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           ...visibleGroups.map(
@@ -221,47 +333,77 @@ class _DashboardRecurringGroupSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final title = switch (group.status) {
       DashboardRecurringStatus.overdue => 'Overdue',
       DashboardRecurringStatus.dueToday => 'Due Today',
       DashboardRecurringStatus.upcoming => 'Upcoming',
     };
+    final accent = switch (group.status) {
+      DashboardRecurringStatus.overdue => scheme.error,
+      DashboardRecurringStatus.dueToday => scheme.primary,
+      DashboardRecurringStatus.upcoming => scheme.tertiary,
+    };
+    final icon = switch (group.status) {
+      DashboardRecurringStatus.overdue => Icons.warning_amber_rounded,
+      DashboardRecurringStatus.dueToday => Icons.today_rounded,
+      DashboardRecurringStatus.upcoming => Icons.schedule_rounded,
+    };
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                '$title (${group.totalCount})',
-                style: theme.textTheme.titleSmall,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: accent, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '$title (${group.totalCount})',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RecurringTransactionsPage(),
+                    ),
+                  );
+                },
+                child: const Text('View All'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...group.items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _DashboardRecurringItemTile(
+                item: item,
+                status: group.status,
               ),
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const RecurringTransactionsPage(),
-                  ),
-                );
-              },
-              child: const Text('View All'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        ...group.items.map(
-          (item) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _DashboardRecurringItemTile(
-              item: item,
-              status: group.status,
-            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -270,10 +412,7 @@ class _DashboardRecurringItemTile extends ConsumerWidget {
   final RecurringTransactionModel item;
   final DashboardRecurringStatus status;
 
-  const _DashboardRecurringItemTile({
-    required this.item,
-    required this.status,
-  });
+  const _DashboardRecurringItemTile({required this.item, required this.status});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -285,31 +424,34 @@ class _DashboardRecurringItemTile extends ConsumerWidget {
     final amountColor = item.type == TransactionType.expense
         ? scheme.error
         : scheme.primary;
+    final typeLabel = item.type == TransactionType.expense
+        ? 'Expense'
+        : 'Income';
 
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       onTap: () => _showRecurringActionDialog(context, ref, item),
       child: Ink(
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(16),
+          color: scheme.surface.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: 0.24),
+          ),
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         _StatusChip(status: status),
                         Text(
@@ -318,24 +460,76 @@ class _DashboardRecurringItemTile extends ConsumerWidget {
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    amountText,
-                    style: TextStyle(
-                      color: amountColor,
-                      fontWeight: FontWeight.w700,
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: amountColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      amountText,
+                      style: TextStyle(
+                        color: amountColor,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                item.title,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              if (item.note != null && item.note!.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  item.note!.trim(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest.withValues(
+                        alpha: 0.45,
+                      ),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      typeLabel,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
                   Text(
-                    'Tap to confirm',
-                    style: TextStyle(color: scheme.onSurfaceVariant),
+                    'Confirm or skip',
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: scheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -389,7 +583,10 @@ class _DashboardRecurringItemTile extends ConsumerWidget {
                 ),
                 TextButton(
                   onPressed: () {
-                    Navigator.pop(dialogContext, _RecurringDashboardAction.skip);
+                    Navigator.pop(
+                      dialogContext,
+                      _RecurringDashboardAction.skip,
+                    );
                   },
                   child: const Text('Skip'),
                 ),
@@ -398,7 +595,9 @@ class _DashboardRecurringItemTile extends ConsumerWidget {
                     final parsedAmount = double.tryParse(
                       amountController.text.trim(),
                     );
-                    final hasAmountText = amountController.text.trim().isNotEmpty;
+                    final hasAmountText = amountController.text
+                        .trim()
+                        .isNotEmpty;
 
                     if (hasAmountText &&
                         (parsedAmount == null || parsedAmount <= 0)) {
@@ -431,7 +630,6 @@ class _DashboardRecurringItemTile extends ConsumerWidget {
     );
 
     if (action == null) {
-      amountController.dispose();
       return;
     }
 
@@ -471,6 +669,44 @@ class _DashboardRecurringItemTile extends ConsumerWidget {
   }
 }
 
+class _RecurringOverviewPill extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color;
+
+  const _RecurringOverviewPill({
+    required this.label,
+    required this.count,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '$label · $count',
+            style: TextStyle(color: color, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _StatusChip extends StatelessWidget {
   final DashboardRecurringStatus status;
 
@@ -482,10 +718,7 @@ class _StatusChip extends StatelessWidget {
     final (label, color) = switch (status) {
       DashboardRecurringStatus.overdue => ('Overdue', scheme.error),
       DashboardRecurringStatus.dueToday => ('Due today', scheme.primary),
-      DashboardRecurringStatus.upcoming => (
-        'Upcoming',
-        scheme.tertiary,
-      ),
+      DashboardRecurringStatus.upcoming => ('Upcoming', scheme.tertiary),
     };
 
     return Container(
@@ -504,24 +737,49 @@ class _StatusChip extends StatelessWidget {
 
 enum _RecurringDashboardAction { confirm, skip }
 
-class _BalanceCard extends StatelessWidget {
-  final double balance;
+class _DashboardEmptyState extends StatelessWidget {
+  final String title;
+  final String message;
 
-  const _BalanceCard({required this.balance});
+  const _DashboardEmptyState({required this.title, required this.message});
 
   @override
   Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      children: [_DashboardMaskedNoticeCard(title: title, message: message)],
+    );
+  }
+}
+
+class _DashboardMaskedNoticeCard extends StatelessWidget {
+  final String title;
+  final String message;
+
+  const _DashboardMaskedNoticeCard({
+    required this.title,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Total Balance"),
-            const SizedBox(height: 8),
             Text(
-              "₹${balance.toStringAsFixed(2)}",
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              title,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
+            const SizedBox(height: 8),
+            Text(message, style: TextStyle(color: scheme.onSurfaceVariant)),
           ],
         ),
       ),
@@ -531,7 +789,7 @@ class _BalanceCard extends StatelessWidget {
 
 class _SummaryCard extends StatelessWidget {
   final String label;
-  final double value;
+  final String value;
   final Color color;
 
   const _SummaryCard({
@@ -550,7 +808,7 @@ class _SummaryCard extends StatelessWidget {
             Text(label),
             const SizedBox(height: 6),
             Text(
-              "₹${value.toStringAsFixed(2)}",
+              value,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
