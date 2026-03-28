@@ -15,7 +15,7 @@ class DashboardStats {
 }
 
 final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
-  final transactionsAsync = ref.watch(transactionsProvider);
+  final transactionsAsync = ref.watch(visibleTransactionsProvider);
 
   return transactionsAsync.whenData((transactions) {
     double income = 0;
@@ -33,8 +33,9 @@ final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
   });
 });
 
-final dashboardRecurringProvider =
-    FutureProvider<DashboardRecurringSnapshot>((ref) async {
-      final service = ref.read(recurringTransactionServiceProvider);
-      return service.getDashboardRecurring();
-    });
+final dashboardRecurringProvider = FutureProvider<DashboardRecurringSnapshot>((
+  ref,
+) async {
+  final service = ref.read(recurringTransactionServiceProvider);
+  return service.getDashboardRecurring();
+});
