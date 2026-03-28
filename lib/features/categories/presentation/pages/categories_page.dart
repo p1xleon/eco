@@ -101,7 +101,7 @@ class _CategoryIntroCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: scheme.primaryContainer,
+                  color: scheme.primaryContainer.withValues(alpha: 0.72),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
