@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../../transactions/data/models/transaction_model.dart';
@@ -11,7 +12,8 @@ class AnalyticsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final transactionsAsync = ref.watch(transactionsProvider);
+    final visibility = ref.watch(transactionVisibilityProvider);
+    final transactionsAsync = ref.watch(visibleTransactionsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
 
     return DefaultTabController(
@@ -26,40 +28,54 @@ class AnalyticsPage extends ConsumerWidget {
             ],
           ),
         ),
-        body: transactionsAsync.when(
-          data: (transactions) {
-            return categoriesAsync.when(
-              data: (categories) {
-                final categoriesById = {
-                  for (final category in categories) category.id: category,
-                };
+        body: visibility.isInvisible
+            ? const _AnalyticsEmptyState(
+                title: 'Analytics Hidden',
+                message:
+                    'Invisible mode hides dashboard insights until you add new transactions in this mode.',
+              )
+            : transactionsAsync.when(
+                data: (transactions) {
+                  return categoriesAsync.when(
+                    data: (categories) {
+                      final categoriesById = {
+                        for (final category in categories)
+                          category.id: category,
+                      };
 
-                return TabBarView(
-                  children: [
-                    _AnalyticsBreakdownView(
-                      type: TransactionType.expense,
-                      transactions: transactions
-                          .where((tx) => tx.type == TransactionType.expense)
-                          .toList(),
-                      categoriesById: categoriesById,
-                    ),
-                    _AnalyticsBreakdownView(
-                      type: TransactionType.income,
-                      transactions: transactions
-                          .where((tx) => tx.type == TransactionType.income)
-                          .toList(),
-                      categoriesById: categoriesById,
-                    ),
-                  ],
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text(e.toString())),
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text(e.toString())),
-        ),
+                      return TabBarView(
+                        children: [
+                          _AnalyticsBreakdownView(
+                            type: TransactionType.expense,
+                            visibility: visibility,
+                            transactions: transactions
+                                .where(
+                                  (tx) => tx.type == TransactionType.expense,
+                                )
+                                .toList(),
+                            categoriesById: categoriesById,
+                          ),
+                          _AnalyticsBreakdownView(
+                            type: TransactionType.income,
+                            visibility: visibility,
+                            transactions: transactions
+                                .where(
+                                  (tx) => tx.type == TransactionType.income,
+                                )
+                                .toList(),
+                            categoriesById: categoriesById,
+                          ),
+                        ],
+                      );
+                    },
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text(e.toString())),
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text(e.toString())),
+              ),
       ),
     );
   }
@@ -67,11 +83,13 @@ class AnalyticsPage extends ConsumerWidget {
 
 class _AnalyticsBreakdownView extends StatelessWidget {
   final TransactionType type;
+  final TransactionVisibilityState visibility;
   final List<TransactionModel> transactions;
   final Map<int, CategoryModel> categoriesById;
 
   const _AnalyticsBreakdownView({
     required this.type,
+    required this.visibility,
     required this.transactions,
     required this.categoriesById,
   });
@@ -110,7 +128,10 @@ class _AnalyticsBreakdownView extends StatelessWidget {
     final average = total / transactions.length;
     final categoryItems = _buildBreakdownItems(
       transactions,
-      labelFor: (tx) => categoriesById[tx.categoryId]?.name ?? 'Unknown',
+      labelFor: (tx) => visibility.displayCategory(
+        categoriesById[tx.categoryId]?.name ?? 'Unknown',
+        seed: 'category:${tx.categoryId}',
+      ),
       colorFor: (tx) {
         final category = categoriesById[tx.categoryId];
         return category != null ? Color(category.color) : accent;
@@ -118,12 +139,20 @@ class _AnalyticsBreakdownView extends StatelessWidget {
     );
     final paymentMethodItems = _buildBreakdownItems(
       transactions,
-      labelFor: (tx) => _normalizedValue(tx.paymentMethod),
+      labelFor: (tx) => visibility.displayText(
+        tx.paymentMethod,
+        seed: 'payment:${tx.id}:${tx.paymentMethod ?? ''}',
+        placeholder: 'Unspecified',
+      ),
       colorFor: (_) => scheme.secondary,
     );
     final payeeItems = _buildBreakdownItems(
       transactions,
-      labelFor: (tx) => _normalizedValue(tx.payee),
+      labelFor: (tx) => visibility.displayText(
+        tx.payee,
+        seed: 'payee:${tx.id}:${tx.payee ?? ''}',
+        placeholder: 'Unspecified',
+      ),
       colorFor: (_) => scheme.tertiary,
     );
 
@@ -145,12 +174,12 @@ class _AnalyticsBreakdownView extends StatelessWidget {
           children: [
             _AnalyticsStatCard(
               label: 'Total',
-              value: '₹${total.toStringAsFixed(2)}',
+              value: visibility.displayAmount('₹${total.toStringAsFixed(2)}'),
               accent: accent,
             ),
             _AnalyticsStatCard(
               label: 'Average',
-              value: '₹${average.toStringAsFixed(2)}',
+              value: visibility.displayAmount('₹${average.toStringAsFixed(2)}'),
               accent: scheme.secondary,
             ),
             _AnalyticsStatCard(
@@ -165,8 +194,10 @@ class _AnalyticsBreakdownView extends StatelessWidget {
           title: type == TransactionType.expense
               ? 'Largest expense'
               : 'Largest income',
-          value: highest.title,
-          meta: '₹${highest.amount.toStringAsFixed(2)}',
+          value: visibility.displayTitle(highest),
+          meta: visibility.displayAmount(
+            '₹${highest.amount.toStringAsFixed(2)}',
+          ),
           accent: accent,
         ),
         const SizedBox(height: 16),
@@ -174,12 +205,14 @@ class _AnalyticsBreakdownView extends StatelessWidget {
           title: 'By Category',
           subtitle: 'Which categories dominate this side of your cash flow.',
           items: categoryItems,
+          visibility: visibility,
         ),
         const SizedBox(height: 16),
         _BreakdownSection(
           title: 'By Payment Method',
           subtitle: 'How these transactions are usually handled.',
           items: paymentMethodItems,
+          visibility: visibility,
         ),
         const SizedBox(height: 16),
         _BreakdownSection(
@@ -188,6 +221,7 @@ class _AnalyticsBreakdownView extends StatelessWidget {
               ? 'Who takes most of the money.'
               : 'Who contributes most of the income.',
           items: payeeItems,
+          visibility: visibility,
         ),
       ],
     );
@@ -207,26 +241,19 @@ class _AnalyticsBreakdownView extends StatelessWidget {
       colors[label] ??= colorFor(tx);
     }
 
-    final items = totals.entries
-        .map(
-          (entry) => _BreakdownItemData(
-            label: entry.key,
-            amount: entry.value,
-            color: colors[entry.key]!,
-          ),
-        )
-        .toList()
-      ..sort((a, b) => b.amount.compareTo(a.amount));
+    final items =
+        totals.entries
+            .map(
+              (entry) => _BreakdownItemData(
+                label: entry.key,
+                amount: entry.value,
+                color: colors[entry.key]!,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.amount.compareTo(a.amount));
 
     return items.take(6).toList();
-  }
-
-  String _normalizedValue(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Unspecified';
-    }
-
-    return value.trim();
   }
 }
 
@@ -257,7 +284,9 @@ class _AnalyticsHeroCard extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.32)),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.32),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,7 +369,9 @@ class _HighlightCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.surface,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.35)),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
+        ),
       ),
       child: Row(
         children: [
@@ -368,9 +399,9 @@ class _HighlightCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ],
             ),
@@ -389,11 +420,13 @@ class _BreakdownSection extends StatelessWidget {
   final String title;
   final String subtitle;
   final List<_BreakdownItemData> items;
+  final TransactionVisibilityState visibility;
 
   const _BreakdownSection({
     required this.title,
     required this.subtitle,
     required this.items,
+    required this.visibility,
   });
 
   @override
@@ -410,7 +443,9 @@ class _BreakdownSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.35)),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.35),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,7 +459,13 @@ class _BreakdownSection extends StatelessWidget {
           const SizedBox(height: 4),
           Text(subtitle, style: TextStyle(color: scheme.onSurfaceVariant)),
           const SizedBox(height: 16),
-          ...items.map((item) => _BreakdownRow(item: item, maxAmount: maxAmount)),
+          ...items.map(
+            (item) => _BreakdownRow(
+              item: item,
+              maxAmount: maxAmount,
+              visibility: visibility,
+            ),
+          ),
         ],
       ),
     );
@@ -434,8 +475,13 @@ class _BreakdownSection extends StatelessWidget {
 class _BreakdownRow extends StatelessWidget {
   final _BreakdownItemData item;
   final double maxAmount;
+  final TransactionVisibilityState visibility;
 
-  const _BreakdownRow({required this.item, required this.maxAmount});
+  const _BreakdownRow({
+    required this.item,
+    required this.maxAmount,
+    required this.visibility,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -459,8 +505,11 @@ class _BreakdownRow extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                '₹${item.amount.toStringAsFixed(2)}',
-                style: TextStyle(color: item.color, fontWeight: FontWeight.w800),
+                visibility.displayAmount('₹${item.amount.toStringAsFixed(2)}'),
+                style: TextStyle(
+                  color: item.color,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ],
           ),
@@ -490,4 +539,26 @@ class _BreakdownItemData {
     required this.amount,
     required this.color,
   });
+}
+
+class _AnalyticsEmptyState extends StatelessWidget {
+  final String title;
+  final String message;
+
+  const _AnalyticsEmptyState({required this.title, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      children: [
+        _AnalyticsHeroCard(
+          title: title,
+          subtitle: message,
+          accent: Theme.of(context).colorScheme.primary,
+        ),
+      ],
+    );
+  }
 }
