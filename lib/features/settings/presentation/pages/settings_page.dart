@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_provider.dart';
 import '../../../../core/database/isar_service.dart';
+import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../../core/theme/theme_mode_setting.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../categories/presentation/pages/categories_page.dart';
@@ -21,6 +22,8 @@ class SettingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(themeProvider);
     final notifier = ref.read(themeProvider.notifier);
+    final visibility = ref.watch(transactionVisibilityProvider);
+    final visibilityNotifier = ref.read(transactionVisibilityProvider.notifier);
     final authState = ref.watch(authStateProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final paymentMethodPresetsAsync = ref.watch(paymentMethodPresetsProvider);
@@ -116,7 +119,8 @@ class SettingsPage extends ConsumerWidget {
               _SettingsActionTile(
                 icon: Icons.event_repeat_outlined,
                 title: 'Recurring Transactions',
-                subtitle: '$recurringCount template${recurringCount == 1 ? '' : 's'}',
+                subtitle:
+                    '$recurringCount template${recurringCount == 1 ? '' : 's'}',
                 onTap: () {
                   Navigator.push(
                     context,
@@ -132,6 +136,92 @@ class SettingsPage extends ConsumerWidget {
           _SectionCard(
             title: 'Appearance',
             children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.visibility_outlined),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Transaction Visibility',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                'Control how transaction data appears across the app',
+                                style: TextStyle(
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    SegmentedButton<TransactionVisibilityMode>(
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(
+                          value: TransactionVisibilityMode.normal,
+                          label: Text('Normal'),
+                        ),
+                        ButtonSegment(
+                          value: TransactionVisibilityMode.masked,
+                          label: Text('Masked'),
+                        ),
+                        ButtonSegment(
+                          value: TransactionVisibilityMode.invisible,
+                          label: Text('Invisible'),
+                        ),
+                      ],
+                      selected: {visibility.mode},
+                      onSelectionChanged: (selection) {
+                        final nextMode = selection.first;
+                        visibilityNotifier.setMode(
+                          nextMode,
+                          existingTransactions:
+                              transactionsAsync.valueOrNull ?? const [],
+                        );
+                        ScaffoldMessenger.of(context)
+                          ..hideCurrentSnackBar()
+                          ..showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Transaction visibility: ${_visibilityShortLabel(nextMode)}',
+                              ),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _visibilityDescription(visibility.mode),
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Shortcut: long-press the Settings tab icon to cycle Normal, Masked, and Invisible modes from anywhere in the app.',
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -228,6 +318,25 @@ class SettingsPage extends ConsumerWidget {
       ThemeModeSetting.dark => 'Dark',
     };
   }
+
+  String _visibilityDescription(TransactionVisibilityMode mode) {
+    return switch (mode) {
+      TransactionVisibilityMode.normal =>
+        'Show transaction names, amounts, dashboard stats, and analytics normally.',
+      TransactionVisibilityMode.masked =>
+        'Keep transactions visible while replacing sensitive values with masked placeholders.',
+      TransactionVisibilityMode.invisible =>
+        'Hide existing transactions and analytics until new transactions are added in this mode.',
+    };
+  }
+
+  String _visibilityShortLabel(TransactionVisibilityMode mode) {
+    return switch (mode) {
+      TransactionVisibilityMode.normal => 'Normal',
+      TransactionVisibilityMode.masked => 'Masked',
+      TransactionVisibilityMode.invisible => 'Invisible',
+    };
+  }
 }
 
 class _ProfileCard extends StatelessWidget {
@@ -248,11 +357,17 @@ class _ProfileCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [scheme.primaryContainer, scheme.secondaryContainer],
+          colors: [
+            scheme.primaryContainer.withValues(alpha: 0.82),
+            scheme.secondaryContainer.withValues(alpha: 0.62),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.28),
+        ),
       ),
       child: Row(
         children: [
