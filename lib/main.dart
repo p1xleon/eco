@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
+import 'core/privacy/transaction_visibility.dart';
+import 'core/privacy/transaction_visibility_storage.dart';
 import 'core/database/isar_service.dart';
 import 'core/database/category_seeder.dart';
 import 'core/theme/theme_provider.dart';
@@ -29,17 +31,21 @@ Future<void> main() async {
     throw Exception('Missing SUPABASE_ANON_KEY in .env');
   }
 
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
   final initialTheme = await ThemeStorage.load();
+  final initialVisibility = await TransactionVisibilityStorage.load();
 
   runApp(
     ProviderScope(
       overrides: [
         themeProvider.overrideWith((ref) => ThemeNotifier(initialTheme)),
+        transactionVisibilityProvider.overrideWith(
+          (ref) => TransactionVisibilityNotifier(
+            initialVisibility,
+            TransactionVisibilityStorage.save,
+          ),
+        ),
       ],
       child: const Eco(),
     ),
