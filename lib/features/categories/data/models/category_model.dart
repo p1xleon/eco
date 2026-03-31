@@ -8,6 +8,8 @@ enum CategoryType { income, expense }
 class CategoryModel {
   Id id = Isar.autoIncrement;
 
+  String? remoteId;
+
   late String name;
 
   @enumerated
