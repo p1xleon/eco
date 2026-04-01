@@ -12,6 +12,8 @@ enum RecurringIntervalType { daily, weekly, monthly, yearly }
 class RecurringTransactionModel {
   Id id = Isar.autoIncrement;
 
+  String? remoteId;
+
   late String title;
 
   @enumerated
@@ -32,6 +34,8 @@ class RecurringTransactionModel {
   late int intervalCount;
 
   late DateTime nextDueDate;
+
+  DateTime? endDate;
 
   late bool isActive;
 

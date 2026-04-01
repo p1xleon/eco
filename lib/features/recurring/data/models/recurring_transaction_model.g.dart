@@ -44,33 +44,43 @@ const RecurringTransactionModelSchema = CollectionSchema(
       name: r'defaultAmount',
       type: IsarType.double,
     ),
-    r'intervalCount': PropertySchema(
+    r'endDate': PropertySchema(
       id: 5,
+      name: r'endDate',
+      type: IsarType.dateTime,
+    ),
+    r'intervalCount': PropertySchema(
+      id: 6,
       name: r'intervalCount',
       type: IsarType.long,
     ),
     r'intervalType': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'intervalType',
       type: IsarType.byte,
       enumMap: _RecurringTransactionModelintervalTypeEnumValueMap,
     ),
-    r'isActive': PropertySchema(id: 7, name: r'isActive', type: IsarType.bool),
+    r'isActive': PropertySchema(id: 8, name: r'isActive', type: IsarType.bool),
     r'nextDueDate': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'nextDueDate',
       type: IsarType.dateTime,
     ),
-    r'note': PropertySchema(id: 9, name: r'note', type: IsarType.string),
-    r'title': PropertySchema(id: 10, name: r'title', type: IsarType.string),
-    r'type': PropertySchema(
+    r'note': PropertySchema(id: 10, name: r'note', type: IsarType.string),
+    r'remoteId': PropertySchema(
       id: 11,
+      name: r'remoteId',
+      type: IsarType.string,
+    ),
+    r'title': PropertySchema(id: 12, name: r'title', type: IsarType.string),
+    r'type': PropertySchema(
+      id: 13,
       name: r'type',
       type: IsarType.byte,
       enumMap: _RecurringTransactionModeltypeEnumValueMap,
     ),
     r'updatedAt': PropertySchema(
-      id: 12,
+      id: 14,
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
@@ -109,6 +119,12 @@ int _recurringTransactionModelEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  {
+    final value = object.remoteId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.title.length * 3;
   return bytesCount;
 }
@@ -124,14 +140,16 @@ void _recurringTransactionModelSerialize(
   writer.writeLong(offsets[2], object.categoryId);
   writer.writeDateTime(offsets[3], object.createdAt);
   writer.writeDouble(offsets[4], object.defaultAmount);
-  writer.writeLong(offsets[5], object.intervalCount);
-  writer.writeByte(offsets[6], object.intervalType.index);
-  writer.writeBool(offsets[7], object.isActive);
-  writer.writeDateTime(offsets[8], object.nextDueDate);
-  writer.writeString(offsets[9], object.note);
-  writer.writeString(offsets[10], object.title);
-  writer.writeByte(offsets[11], object.type.index);
-  writer.writeDateTime(offsets[12], object.updatedAt);
+  writer.writeDateTime(offsets[5], object.endDate);
+  writer.writeLong(offsets[6], object.intervalCount);
+  writer.writeByte(offsets[7], object.intervalType.index);
+  writer.writeBool(offsets[8], object.isActive);
+  writer.writeDateTime(offsets[9], object.nextDueDate);
+  writer.writeString(offsets[10], object.note);
+  writer.writeString(offsets[11], object.remoteId);
+  writer.writeString(offsets[12], object.title);
+  writer.writeByte(offsets[13], object.type.index);
+  writer.writeDateTime(offsets[14], object.updatedAt);
 }
 
 RecurringTransactionModel _recurringTransactionModelDeserialize(
@@ -150,23 +168,25 @@ RecurringTransactionModel _recurringTransactionModelDeserialize(
   object.categoryId = reader.readLong(offsets[2]);
   object.createdAt = reader.readDateTime(offsets[3]);
   object.defaultAmount = reader.readDoubleOrNull(offsets[4]);
+  object.endDate = reader.readDateTimeOrNull(offsets[5]);
   object.id = id;
-  object.intervalCount = reader.readLong(offsets[5]);
+  object.intervalCount = reader.readLong(offsets[6]);
   object.intervalType =
       _RecurringTransactionModelintervalTypeValueEnumMap[reader.readByteOrNull(
-        offsets[6],
+        offsets[7],
       )] ??
       RecurringIntervalType.daily;
-  object.isActive = reader.readBool(offsets[7]);
-  object.nextDueDate = reader.readDateTime(offsets[8]);
-  object.note = reader.readStringOrNull(offsets[9]);
-  object.title = reader.readString(offsets[10]);
+  object.isActive = reader.readBool(offsets[8]);
+  object.nextDueDate = reader.readDateTime(offsets[9]);
+  object.note = reader.readStringOrNull(offsets[10]);
+  object.remoteId = reader.readStringOrNull(offsets[11]);
+  object.title = reader.readString(offsets[12]);
   object.type =
       _RecurringTransactionModeltypeValueEnumMap[reader.readByteOrNull(
-        offsets[11],
+        offsets[13],
       )] ??
       TransactionType.income;
-  object.updatedAt = reader.readDateTimeOrNull(offsets[12]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[14]);
   return object;
 }
 
@@ -191,27 +211,31 @@ P _recurringTransactionModelDeserializeProp<P>(
     case 4:
       return (reader.readDoubleOrNull(offset)) as P;
     case 5:
-      return (reader.readLong(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 6:
+      return (reader.readLong(offset)) as P;
+    case 7:
       return (_RecurringTransactionModelintervalTypeValueEnumMap[reader
                   .readByteOrNull(offset)] ??
               RecurringIntervalType.daily)
           as P;
-    case 7:
-      return (reader.readBool(offset)) as P;
     case 8:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 9:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 10:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 11:
+      return (reader.readStringOrNull(offset)) as P;
+    case 12:
+      return (reader.readString(offset)) as P;
+    case 13:
       return (_RecurringTransactionModeltypeValueEnumMap[reader.readByteOrNull(
                 offset,
               )] ??
               TransactionType.income)
           as P;
-    case 12:
+    case 14:
       return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -925,6 +949,103 @@ extension RecurringTransactionModelQueryFilter
     RecurringTransactionModel,
     QAfterFilterCondition
   >
+  endDateIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'endDate'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  endDateIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'endDate'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  endDateEqualTo(DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'endDate', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  endDateGreaterThan(DateTime? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'endDate',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  endDateLessThan(DateTime? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'endDate',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  endDateBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'endDate',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
   idEqualTo(Id value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
@@ -1429,6 +1550,213 @@ extension RecurringTransactionModelQueryFilter
     RecurringTransactionModel,
     QAfterFilterCondition
   >
+  remoteIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'remoteId'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  remoteIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'remoteId'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  remoteIdEqualTo(String? value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'remoteId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  remoteIdGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'remoteId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  remoteIdLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'remoteId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  remoteIdBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'remoteId',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  remoteIdStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'remoteId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  remoteIdEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'remoteId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  remoteIdContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'remoteId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  remoteIdMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'remoteId',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  remoteIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'remoteId', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  remoteIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'remoteId', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
   titleEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
@@ -1912,6 +2240,28 @@ extension RecurringTransactionModelQuerySortBy
     RecurringTransactionModel,
     QAfterSortBy
   >
+  sortByEndDate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'endDate', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  sortByEndDateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'endDate', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
   sortByIntervalCount() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'intervalCount', Sort.asc);
@@ -2014,6 +2364,28 @@ extension RecurringTransactionModelQuerySortBy
   sortByNoteDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'note', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  sortByRemoteId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'remoteId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  sortByRemoteIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'remoteId', Sort.desc);
     });
   }
 
@@ -2206,6 +2578,28 @@ extension RecurringTransactionModelQuerySortThenBy
     RecurringTransactionModel,
     QAfterSortBy
   >
+  thenByEndDate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'endDate', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  thenByEndDateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'endDate', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
   thenById() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.asc);
@@ -2338,6 +2732,28 @@ extension RecurringTransactionModelQuerySortThenBy
     RecurringTransactionModel,
     QAfterSortBy
   >
+  thenByRemoteId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'remoteId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  thenByRemoteIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'remoteId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
   thenByTitle() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'title', Sort.asc);
@@ -2443,6 +2859,13 @@ extension RecurringTransactionModelQueryWhereDistinct
   }
 
   QueryBuilder<RecurringTransactionModel, RecurringTransactionModel, QDistinct>
+  distinctByEndDate() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'endDate');
+    });
+  }
+
+  QueryBuilder<RecurringTransactionModel, RecurringTransactionModel, QDistinct>
   distinctByIntervalCount() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'intervalCount');
@@ -2474,6 +2897,13 @@ extension RecurringTransactionModelQueryWhereDistinct
   distinctByNote({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'note', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<RecurringTransactionModel, RecurringTransactionModel, QDistinct>
+  distinctByRemoteId({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'remoteId', caseSensitive: caseSensitive);
     });
   }
 
@@ -2547,6 +2977,13 @@ extension RecurringTransactionModelQueryProperty
     });
   }
 
+  QueryBuilder<RecurringTransactionModel, DateTime?, QQueryOperations>
+  endDateProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'endDate');
+    });
+  }
+
   QueryBuilder<RecurringTransactionModel, int, QQueryOperations>
   intervalCountProperty() {
     return QueryBuilder.apply(this, (query) {
@@ -2583,6 +3020,13 @@ extension RecurringTransactionModelQueryProperty
   noteProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'note');
+    });
+  }
+
+  QueryBuilder<RecurringTransactionModel, String?, QQueryOperations>
+  remoteIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'remoteId');
     });
   }
 
