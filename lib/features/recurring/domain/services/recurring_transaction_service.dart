@@ -61,47 +61,61 @@ class RecurringTransactionService {
     final templates = await recurringRepository.getAll();
     final referenceDate = _dateOnly(today ?? DateTime.now());
     final cutoffDate = referenceDate.add(const Duration(days: 7));
-    final activeTemplates = templates.where((item) => item.isActive).toList();
-
-    final visibleItems = activeTemplates
-        .where(
-          (item) => !_dateOnly(item.nextDueDate).isAfter(cutoffDate),
-        )
+    final activeTemplates = templates
+        .where((item) => item.isActive && !_isPastEndDate(item))
         .toList();
 
-    final overdueItems = visibleItems
-        .where(
-          (item) =>
-              getDashboardStatus(item, referenceDate) ==
-              DashboardRecurringStatus.overdue,
-        )
-        .toList()
-      ..sort((a, b) => _dateOnly(a.nextDueDate).compareTo(_dateOnly(b.nextDueDate)));
+    final visibleItems = activeTemplates
+        .where((item) => !_dateOnly(item.nextDueDate).isAfter(cutoffDate))
+        .toList();
 
-    final dueTodayItems = visibleItems
-        .where(
-          (item) =>
-              getDashboardStatus(item, referenceDate) ==
-              DashboardRecurringStatus.dueToday,
-        )
-        .toList()
-      ..sort((a, b) => _dateOnly(a.nextDueDate).compareTo(_dateOnly(b.nextDueDate)));
+    final overdueItems =
+        visibleItems
+            .where(
+              (item) =>
+                  getDashboardStatus(item, referenceDate) ==
+                  DashboardRecurringStatus.overdue,
+            )
+            .toList()
+          ..sort(
+            (a, b) =>
+                _dateOnly(a.nextDueDate).compareTo(_dateOnly(b.nextDueDate)),
+          );
 
-    final upcomingItems = visibleItems
-        .where(
-          (item) =>
-              getDashboardStatus(item, referenceDate) ==
-              DashboardRecurringStatus.upcoming,
-        )
-        .toList()
-      ..sort((a, b) => _dateOnly(a.nextDueDate).compareTo(_dateOnly(b.nextDueDate)));
+    final dueTodayItems =
+        visibleItems
+            .where(
+              (item) =>
+                  getDashboardStatus(item, referenceDate) ==
+                  DashboardRecurringStatus.dueToday,
+            )
+            .toList()
+          ..sort(
+            (a, b) =>
+                _dateOnly(a.nextDueDate).compareTo(_dateOnly(b.nextDueDate)),
+          );
 
-    final futureItems = activeTemplates
-        .where((item) => _dateOnly(item.nextDueDate).isAfter(cutoffDate))
-        .toList()
-      ..sort(
-        (a, b) => _dateOnly(a.nextDueDate).compareTo(_dateOnly(b.nextDueDate)),
-      );
+    final upcomingItems =
+        visibleItems
+            .where(
+              (item) =>
+                  getDashboardStatus(item, referenceDate) ==
+                  DashboardRecurringStatus.upcoming,
+            )
+            .toList()
+          ..sort(
+            (a, b) =>
+                _dateOnly(a.nextDueDate).compareTo(_dateOnly(b.nextDueDate)),
+          );
+
+    final futureItems =
+        activeTemplates
+            .where((item) => _dateOnly(item.nextDueDate).isAfter(cutoffDate))
+            .toList()
+          ..sort(
+            (a, b) =>
+                _dateOnly(a.nextDueDate).compareTo(_dateOnly(b.nextDueDate)),
+          );
 
     return DashboardRecurringSnapshot(
       overdue: DashboardRecurringGroup(
@@ -126,12 +140,14 @@ class RecurringTransactionService {
   bool isDue(RecurringTransactionModel template, [DateTime? today]) {
     final referenceDate = _dateOnly(today ?? DateTime.now());
     return template.isActive &&
+        !_isPastEndDate(template) &&
         !_dateOnly(template.nextDueDate).isAfter(referenceDate);
   }
 
   bool isOverdue(RecurringTransactionModel template, [DateTime? today]) {
     final referenceDate = _dateOnly(today ?? DateTime.now());
     return template.isActive &&
+        !_isPastEndDate(template) &&
         _dateOnly(template.nextDueDate).isBefore(referenceDate);
   }
 
@@ -187,19 +203,29 @@ class RecurringTransactionService {
       ..note = template.note
       ..createdAt = now
       ..updatedAt = now
-      ..recurringId = template.id.toString();
+      ..recurringId = template.id.toString()
+      ..recurringTemplateId = template.id
+      ..isRecurringInstance = true;
 
     final savedTransaction = await transactionRepository.add(transaction);
 
     template.nextDueDate = calculateNextDueDate(template);
+    if (_isPastEndDate(template)) {
+      template.isActive = false;
+    }
     template.updatedAt = now;
     await recurringRepository.save(template);
 
     return savedTransaction;
   }
 
-  Future<void> skipRecurringTransaction(RecurringTransactionModel template) async {
+  Future<void> skipRecurringTransaction(
+    RecurringTransactionModel template,
+  ) async {
     template.nextDueDate = calculateNextDueDate(template);
+    if (_isPastEndDate(template)) {
+      template.isActive = false;
+    }
     template.updatedAt = DateTime.now();
     await recurringRepository.save(template);
   }
@@ -223,14 +249,18 @@ class RecurringTransactionService {
     if (template.amountType == RecurringAmountType.fixed) {
       final fixedAmount = template.defaultAmount;
       if (fixedAmount == null) {
-        throw StateError('Fixed recurring transactions require a default amount.');
+        throw StateError(
+          'Fixed recurring transactions require a default amount.',
+        );
       }
 
       return fixedAmount;
     }
 
     if (amount == null || amount <= 0) {
-      throw StateError('Variable recurring transactions require a valid amount.');
+      throw StateError(
+        'Variable recurring transactions require a valid amount.',
+      );
     }
 
     return amount;
@@ -239,6 +269,16 @@ class RecurringTransactionService {
   DateTime _dateOnly(DateTime value) {
     return DateTime(value.year, value.month, value.day);
   }
+
+  bool _isPastEndDate(RecurringTransactionModel template) {
+    final endDate = template.endDate;
+    if (endDate == null) {
+      return false;
+    }
+
+    return _dateOnly(template.nextDueDate).isAfter(_dateOnly(endDate));
+  }
+
   DateTime _addMonthsClamped(DateTime value, int months) {
     final targetMonth = value.month + months;
     final firstDayOfTargetMonth = DateTime(value.year, targetMonth, 1);
