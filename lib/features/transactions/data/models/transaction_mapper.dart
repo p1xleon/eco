@@ -15,6 +15,9 @@ extension TransactionMapper on TransactionModel {
       'date': date.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
+      'recurring_id': recurringId,
+      'recurring_template_id': recurringTemplateId,
+      'is_recurring_instance': isRecurringInstance,
     };
 
     if (includeId && remoteId != null) {
@@ -29,6 +32,9 @@ extension TransactionMapper on TransactionModel {
 
     transaction.remoteId = json['id'];
     transaction.recurringId = json['recurring_id'];
+    transaction.recurringTemplateId = (json['recurring_template_id'] as num?)
+        ?.toInt();
+    transaction.isRecurringInstance = json['is_recurring_instance'] as bool?;
     transaction.title = json['title'];
     transaction.amount = (json['amount'] as num).toDouble();
     transaction.date = DateTime.parse(json['date']);
