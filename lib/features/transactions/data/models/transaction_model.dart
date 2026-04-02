@@ -12,6 +12,8 @@ class TransactionModel {
 
   String? remoteId;
   String? recurringId;
+  int? recurringTemplateId;
+  bool? isRecurringInstance;
 
   late String title;
 
