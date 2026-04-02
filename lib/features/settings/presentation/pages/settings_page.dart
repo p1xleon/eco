@@ -11,6 +11,7 @@ import '../../../categories/presentation/pages/categories_page.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../../recurring/presentation/pages/recurring_transactions_page.dart';
 import '../../../recurring/presentation/providers/recurring_transaction_provider.dart';
+import '../../../transactions/import/pages/import_transactions_page.dart';
 import '../../../transactions/presentation/providers/transaction_provider.dart';
 import '../providers/transaction_preset_provider.dart';
 import 'transaction_presets_page.dart';
@@ -111,6 +112,21 @@ class SettingsPage extends ConsumerWidget {
                     context,
                     MaterialPageRoute(
                       builder: (_) => const TransactionPresetsPage(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _SettingsActionTile(
+                icon: Icons.upload_file_outlined,
+                title: 'Import Transactions',
+                subtitle:
+                    'Upload a CSV, map columns, review rows, and save only after final confirmation',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ImportTransactionsPage(),
                     ),
                   );
                 },
