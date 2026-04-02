@@ -39,6 +39,8 @@ class TransactionRepository {
         final saved = await uploadTransaction(local);
         saved.id = local.id;
         saved.recurringId = local.recurringId;
+        saved.recurringTemplateId = local.recurringTemplateId;
+        saved.isRecurringInstance = local.isRecurringInstance;
         saved.status = local.status;
 
         await _isar.writeTxn(() async {
@@ -56,6 +58,8 @@ class TransactionRepository {
         final saved = await uploadTransaction(tx);
         saved.status = tx.status;
         saved.recurringId = tx.recurringId;
+        saved.recurringTemplateId = tx.recurringTemplateId;
+        saved.isRecurringInstance = tx.isRecurringInstance;
         await _isar.writeTxn(() async {
           await _isar.transactionModels.put(saved);
         });
@@ -70,12 +74,36 @@ class TransactionRepository {
     return tx;
   }
 
+  Future<List<TransactionModel>> addAll(
+    Iterable<TransactionModel> transactions,
+  ) async {
+    final items = transactions.toList(growable: false);
+    if (items.isEmpty) {
+      return const [];
+    }
+
+    if (!remote.isAuthenticated) {
+      await _isar.writeTxn(() async {
+        await _isar.transactionModels.putAll(items);
+      });
+      return items;
+    }
+
+    final saved = <TransactionModel>[];
+    for (final transaction in items) {
+      saved.add(await add(transaction));
+    }
+    return saved;
+  }
+
   Future<TransactionModel> update(TransactionModel tx) async {
     if (remote.isAuthenticated && tx.remoteId != null) {
       final saved = await updateRemoteTransaction(tx);
       saved.id = tx.id;
       saved.status = tx.status;
       saved.recurringId = tx.recurringId;
+      saved.recurringTemplateId = tx.recurringTemplateId;
+      saved.isRecurringInstance = tx.isRecurringInstance;
 
       await _isar.writeTxn(() async {
         await _isar.transactionModels.put(saved);
@@ -121,15 +149,28 @@ class TransactionRepository {
       for (final tx in syncedLocal)
         if (tx.remoteId != null) tx.remoteId!: tx.recurringId,
     };
+    final recurringTemplateIdsByRemoteId = <String, int?>{
+      for (final tx in syncedLocal)
+        if (tx.remoteId != null) tx.remoteId!: tx.recurringTemplateId,
+    };
+    final recurringInstanceByRemoteId = <String, bool?>{
+      for (final tx in syncedLocal)
+        if (tx.remoteId != null) tx.remoteId!: tx.isRecurringInstance,
+    };
     final statusByRemoteId = <String, TransactionStatus>{
       for (final tx in syncedLocal)
         if (tx.remoteId != null) tx.remoteId!: tx.status,
     };
 
     for (final tx in transactions) {
-      final recurringId = recurringIdsByRemoteId[tx.remoteId];
-      if (recurringId != null) {
-        tx.recurringId = recurringId;
+      if (recurringIdsByRemoteId.containsKey(tx.remoteId)) {
+        tx.recurringId = recurringIdsByRemoteId[tx.remoteId];
+      }
+      if (recurringTemplateIdsByRemoteId.containsKey(tx.remoteId)) {
+        tx.recurringTemplateId = recurringTemplateIdsByRemoteId[tx.remoteId];
+      }
+      if (recurringInstanceByRemoteId.containsKey(tx.remoteId)) {
+        tx.isRecurringInstance = recurringInstanceByRemoteId[tx.remoteId];
       }
       final status = statusByRemoteId[tx.remoteId];
       if (status != null) {
@@ -160,7 +201,10 @@ class TransactionRepository {
       return tx;
     }
 
-    final data = await remote.updateTransaction(tx.remoteId!, tx.toJson(user.id));
+    final data = await remote.updateTransaction(
+      tx.remoteId!,
+      tx.toJson(user.id),
+    );
     return TransactionMapper.fromJson(data);
   }
 
