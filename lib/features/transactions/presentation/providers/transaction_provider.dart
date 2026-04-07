@@ -74,12 +74,16 @@ final filteredTransactionsProvider =
           }
 
           if (filter.recurring == RecurringFilter.recurringOnly &&
-              tx.recurringId == null) {
+              tx.recurringId == null &&
+              tx.recurringTemplateId == null &&
+              tx.isRecurringInstance != true) {
             return false;
           }
 
           if (filter.recurring == RecurringFilter.nonRecurringOnly &&
-              tx.recurringId != null) {
+              (tx.recurringId != null ||
+                  tx.recurringTemplateId != null ||
+                  tx.isRecurringInstance == true)) {
             return false;
           }
 
