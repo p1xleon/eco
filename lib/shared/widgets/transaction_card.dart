@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/privacy/transaction_visibility.dart';
 import '../../features/categories/data/models/category_model.dart';
+import '../../features/recurring/presentation/providers/recurring_transaction_provider.dart';
 import '../../features/transactions/data/models/transaction_model.dart';
 import '../../features/transactions/data/providers/transaction_repository_provider.dart';
 import '../../features/transactions/presentation/pages/add_transaction_page.dart';
@@ -58,6 +59,12 @@ class TransactionCard extends ConsumerWidget {
     final hasNote = transaction.note?.trim().isNotEmpty == true;
     final isRecurring =
         transaction.recurringId != null && transaction.recurringId!.isNotEmpty;
+    final linkedTemplateAsync = transaction.recurringTemplateId == null
+        ? null
+        : ref.watch(recurringTransactionsProvider);
+    final linkedTemplate = linkedTemplateAsync?.valueOrNull
+        ?.where((template) => template.id == transaction.recurringTemplateId)
+        .firstOrNull;
 
     final displayTitle = visibility.displayTitle(
       transaction,
@@ -416,6 +423,20 @@ class TransactionCard extends ConsumerWidget {
                         ],
                       ),
                     ],
+                    if (linkedTemplate != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Linked to ${linkedTemplate.title} • ${_intervalLabel(linkedTemplate.intervalType.name)}',
+                        style: tt.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant.withValues(
+                            alpha: 0.72,
+                          ),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -430,6 +451,16 @@ class TransactionCard extends ConsumerWidget {
 
   static Color _accentFor(bool isExpense) =>
       isExpense ? const Color(0xFFD94040) : const Color(0xFF1A8C5B);
+
+  static String _intervalLabel(String name) {
+    return switch (name) {
+      'daily' => 'Daily',
+      'weekly' => 'Weekly',
+      'monthly' => 'Monthly',
+      'yearly' => 'Yearly',
+      _ => 'Recurring',
+    };
+  }
 
   // ── Quick actions sheet ───────────────────────────────────────────────────
 
@@ -786,6 +817,8 @@ class TransactionCard extends ConsumerWidget {
       ..id = transaction.id
       ..remoteId = transaction.remoteId
       ..recurringId = transaction.recurringId
+      ..recurringTemplateId = transaction.recurringTemplateId
+      ..isRecurringInstance = transaction.isRecurringInstance
       ..title = transaction.title
       ..amount = transaction.amount
       ..date = transaction.date
