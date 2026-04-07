@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
+import '../../../recurring/presentation/providers/recurring_transaction_provider.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/providers/transaction_repository_provider.dart';
 import '../providers/transaction_provider.dart';
@@ -34,6 +35,7 @@ class _TransactionDetailsPageState
   Widget build(BuildContext context) {
     final visibility = ref.watch(transactionVisibilityProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
+    final recurringTemplatesAsync = ref.watch(recurringTransactionsProvider);
     final isExpense = _transaction.type == TransactionType.expense;
     final amountColor = isExpense ? Colors.red : Colors.green;
     final isPending = _transaction.status == TransactionStatus.pending;
@@ -73,205 +75,239 @@ class _TransactionDetailsPageState
       ),
       body: categoriesAsync.when(
         data: (categories) {
-          final category = categories
-              .where((item) => item.id == _transaction.categoryId)
-              .firstOrNull;
-          final categoryName = visibility.displayCategory(
-            category?.name ?? 'Unknown',
-            seed:
-                'category:${_transaction.categoryId}:${category?.name ?? 'Unknown'}',
-          );
-          final title = visibility.displayTitle(_transaction);
-          final amount = visibility.displayAmount(
-            '${isExpense ? '-' : '+'} ₹${_transaction.amount.toStringAsFixed(2)}',
-          );
-          final paymentMethod = visibility.displayText(
-            _transaction.paymentMethod,
-            seed:
-                'payment:${_transaction.id}:${_transaction.paymentMethod ?? ''}',
-          );
-          final payee = visibility.displayText(
-            _transaction.payee,
-            seed: 'payee:${_transaction.id}:${_transaction.payee ?? ''}',
-          );
-          final note = visibility.displayText(
-            _transaction.note,
-            seed: 'note:${_transaction.id}:${_transaction.note ?? ''}',
-          );
+          return recurringTemplatesAsync.when(
+            data: (templates) {
+              final category = categories
+                  .where((item) => item.id == _transaction.categoryId)
+                  .firstOrNull;
+              final linkedTemplate = templates
+                  .where((item) => item.id == _transaction.recurringTemplateId)
+                  .firstOrNull;
+              final categoryName = visibility.displayCategory(
+                category?.name ?? 'Unknown',
+                seed:
+                    'category:${_transaction.categoryId}:${category?.name ?? 'Unknown'}',
+              );
+              final title = visibility.displayTitle(_transaction);
+              final amount = visibility.displayAmount(
+                '${isExpense ? '-' : '+'} ₹${_transaction.amount.toStringAsFixed(2)}',
+              );
+              final paymentMethod = visibility.displayText(
+                _transaction.paymentMethod,
+                seed:
+                    'payment:${_transaction.id}:${_transaction.paymentMethod ?? ''}',
+              );
+              final payee = visibility.displayText(
+                _transaction.payee,
+                seed: 'payee:${_transaction.id}:${_transaction.payee ?? ''}',
+              );
+              final note = visibility.displayText(
+                _transaction.note,
+                seed: 'note:${_transaction.id}:${_transaction.note ?? ''}',
+              );
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: Colors.grey, width: 1),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: Colors.grey, width: 1),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Flexible(
-                            child: Text(
-                              amount,
-                              style: Theme.of(context).textTheme.headlineMedium
-                                  ?.copyWith(
+                          Text(
+                            title,
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  amount,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineMedium
+                                      ?.copyWith(
+                                        color: amountColor,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: amountColor.withValues(alpha: 0.10),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  _transaction.type.name[0].toUpperCase() +
+                                      _transaction.type.name.substring(1),
+                                  style: TextStyle(
                                     color: amountColor,
                                     fontWeight: FontWeight.bold,
                                   ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: amountColor.withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(
-                              _transaction.type.name[0].toUpperCase() +
-                                  _transaction.type.name.substring(1),
-                              style: TextStyle(
-                                color: amountColor,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          if (isPending) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.tertiaryContainer,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                'Pending',
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onTertiaryContainer,
-                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ),
-                          ],
+                              if (isPending) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.tertiaryContainer,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Text(
+                                    'Pending',
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onTertiaryContainer,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _DetailSection(
+                    title: 'Details',
+                    children: [
+                      _DetailRow(
+                        icon: Icons.category_outlined,
+                        label: 'Category',
+                        value: categoryName,
+                      ),
+                      _DetailRow(
+                        icon: Icons.flag_outlined,
+                        label: 'Status',
+                        value: isPending ? 'Pending' : 'Paid',
+                      ),
+                      _DetailRow(
+                        icon: Icons.payment_outlined,
+                        label: 'Payment Method',
+                        value: paymentMethod,
+                      ),
+                      _DetailRow(
+                        icon: Icons.store_outlined,
+                        label: 'Store / Payment To',
+                        value: payee,
+                      ),
+                      _DetailRow(
+                        icon: Icons.calendar_today_outlined,
+                        label: 'Transaction Date',
+                        value: DateFormat(
+                          'dd MMM yyyy, hh:mm a',
+                        ).format(_transaction.date),
+                      ),
+                      _DetailRow(
+                        icon: Icons.access_time_outlined,
+                        label: 'Created At',
+                        value: DateFormat(
+                          'dd MMM yyyy, hh:mm a',
+                        ).format(_transaction.createdAt.toLocal()),
+                      ),
+                      if (_showUpdatedAt(_transaction))
+                        _DetailRow(
+                          icon: Icons.update_outlined,
+                          label: 'Updated At',
+                          value: DateFormat(
+                            'dd MMM yyyy, hh:mm a',
+                          ).format(_transaction.updatedAt!.toLocal()),
+                        ),
+                      if (linkedTemplate != null)
+                        _DetailRow(
+                          icon: Icons.link_rounded,
+                          label: 'Linked Template',
+                          value:
+                              '${linkedTemplate.title} (${_intervalLabel(linkedTemplate.intervalType.name)})',
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _DetailSection(
+                    title: 'Notes',
+                    children: [
+                      _DetailRow(
+                        icon: Icons.notes_outlined,
+                        label: 'Note',
+                        value: note,
+                        multiline: true,
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _DetailSection(
-                title: 'Details',
-                children: [
-                  _DetailRow(
-                    icon: Icons.category_outlined,
-                    label: 'Category',
-                    value: categoryName,
+                  const SizedBox(height: 16),
+                  _DetailSection(
+                    title: 'Identifiers',
+                    children: [
+                      _DetailRow(
+                        icon: Icons.fingerprint_outlined,
+                        label: 'Local ID',
+                        value: _transaction.id.toString(),
+                      ),
+                      _DetailRow(
+                        icon: Icons.cloud_outlined,
+                        label: 'Remote ID',
+                        value: _fallback(_transaction.remoteId),
+                      ),
+                      _DetailRow(
+                        icon: Icons.event_repeat_outlined,
+                        label: 'Recurring ID',
+                        value: _fallback(_transaction.recurringId),
+                      ),
+                      _DetailRow(
+                        icon: Icons.link_outlined,
+                        label: 'Recurring Template ID',
+                        value: _fallback(
+                          _transaction.recurringTemplateId?.toString(),
+                        ),
+                      ),
+                      _DetailRow(
+                        icon: Icons.repeat_one_outlined,
+                        label: 'Recurring Instance',
+                        value: _transaction.isRecurringInstance == null
+                            ? 'Not provided'
+                            : (_transaction.isRecurringInstance!
+                                  ? 'Yes'
+                                  : 'No'),
+                      ),
+                      _DetailRow(
+                        icon: Icons.sync_outlined,
+                        label: 'Sync Status',
+                        value: _transaction.remoteId == null
+                            ? 'Local only'
+                            : 'Synced',
+                      ),
+                    ],
                   ),
-                  _DetailRow(
-                    icon: Icons.flag_outlined,
-                    label: 'Status',
-                    value: isPending ? 'Pending' : 'Paid',
-                  ),
-                  _DetailRow(
-                    icon: Icons.payment_outlined,
-                    label: 'Payment Method',
-                    value: paymentMethod,
-                  ),
-                  _DetailRow(
-                    icon: Icons.store_outlined,
-                    label: 'Store / Payment To',
-                    value: payee,
-                  ),
-                  _DetailRow(
-                    icon: Icons.calendar_today_outlined,
-                    label: 'Transaction Date',
-                    value: DateFormat(
-                      'dd MMM yyyy, hh:mm a',
-                    ).format(_transaction.date),
-                  ),
-                  _DetailRow(
-                    icon: Icons.access_time_outlined,
-                    label: 'Created At',
-                    value: DateFormat(
-                      'dd MMM yyyy, hh:mm a',
-                    ).format(_transaction.createdAt.toLocal()),
-                  ),
-                  if (_showUpdatedAt(_transaction))
-                    _DetailRow(
-                      icon: Icons.update_outlined,
-                      label: 'Updated At',
-                      value: DateFormat(
-                        'dd MMM yyyy, hh:mm a',
-                      ).format(_transaction.updatedAt!.toLocal()),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _DetailSection(
-                title: 'Notes',
-                children: [
-                  _DetailRow(
-                    icon: Icons.notes_outlined,
-                    label: 'Note',
-                    value: note,
-                    multiline: true,
+                  const SizedBox(height: 16),
+                  Text(
+                    'Recorded ${DateFormatter.fullDate(_transaction.date)}',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
-              ),
-              const SizedBox(height: 16),
-              _DetailSection(
-                title: 'Identifiers',
-                children: [
-                  _DetailRow(
-                    icon: Icons.fingerprint_outlined,
-                    label: 'Local ID',
-                    value: _transaction.id.toString(),
-                  ),
-                  _DetailRow(
-                    icon: Icons.cloud_outlined,
-                    label: 'Remote ID',
-                    value: _fallback(_transaction.remoteId),
-                  ),
-                  _DetailRow(
-                    icon: Icons.event_repeat_outlined,
-                    label: 'Recurring ID',
-                    value: _fallback(_transaction.recurringId),
-                  ),
-                  _DetailRow(
-                    icon: Icons.sync_outlined,
-                    label: 'Sync Status',
-                    value: _transaction.remoteId == null
-                        ? 'Local only'
-                        : 'Synced',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Recorded ${DateFormatter.fullDate(_transaction.date)}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text(e.toString())),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -372,6 +408,16 @@ class _TransactionDetailsPageState
 
     final delta = updatedAt.toUtc().difference(transaction.createdAt.toUtc());
     return delta.inSeconds.abs() >= 1;
+  }
+
+  String _intervalLabel(String name) {
+    return switch (name) {
+      'daily' => 'Daily',
+      'weekly' => 'Weekly',
+      'monthly' => 'Monthly',
+      'yearly' => 'Yearly',
+      _ => 'Recurring',
+    };
   }
 }
 
