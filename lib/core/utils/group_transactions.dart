@@ -39,6 +39,7 @@ List<TransactionMonthGroup> groupTransactionsByMonth(
         }
 
         return TransactionMonthGroup(
+          monthKey: key,
           title: _monthKeyFormatter.format(DateTime(year, month)),
           transactions: monthTransactions,
           income: income,
@@ -49,12 +50,14 @@ List<TransactionMonthGroup> groupTransactionsByMonth(
 }
 
 class TransactionMonthGroup {
+  final int monthKey;
   final String title;
   final List<TransactionModel> transactions;
   final double income;
   final double expense;
 
   const TransactionMonthGroup({
+    required this.monthKey,
     required this.title,
     required this.transactions,
     required this.income,
