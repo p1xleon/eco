@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
+import '../../import/pages/import_transactions_page.dart';
 import '../../../recurring/presentation/pages/recurring_transactions_page.dart';
 import '../../../../shared/widgets/transaction_list_grouped.dart';
 import '../providers/transaction_filter.dart';
@@ -74,9 +75,22 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
       appBar: AppBar(
         title: const Text('Transactions'),
         actions:
-            _isRecurringTab || visibility.isMasked || visibility.isInvisible
+            _isRecurringTab
             ? null
             : [
+                IconButton(
+                  tooltip: 'Import CSV',
+                  icon: const Icon(Icons.upload_file_outlined),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ImportTransactionsPage(),
+                      ),
+                    );
+                  },
+                ),
+                if (!visibility.isMasked && !visibility.isInvisible)
                 IconButton(
                   icon: Badge(
                     isLabelVisible: filter.activeCount > 0,
