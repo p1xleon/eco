@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
-import '../../import/pages/import_transactions_page.dart';
 import '../../../recurring/presentation/pages/recurring_transactions_page.dart';
 import '../../../../shared/widgets/transaction_list_grouped.dart';
 import '../providers/transaction_filter.dart';
@@ -26,6 +25,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
   late TabController _tabController;
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
+  int _collapseAllSignal = 0;
 
   bool get _isRecurringTab => _tabController.index == 3;
 
@@ -63,6 +63,12 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
     });
   }
 
+  void _collapseAllMonths() {
+    setState(() {
+      _collapseAllSignal++;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final filter = ref.watch(transactionFilterProvider);
@@ -74,34 +80,27 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transactions'),
-        actions:
-            _isRecurringTab
+        actions: _isRecurringTab
             ? null
             : [
                 IconButton(
-                  tooltip: 'Import CSV',
-                  icon: const Icon(Icons.upload_file_outlined),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ImportTransactionsPage(),
-                      ),
-                    );
-                  },
+                  tooltip: 'Collapse all months',
+                  icon: const Icon(Icons.unfold_less),
+                  onPressed: _collapseAllMonths,
                 ),
                 if (!visibility.isMasked && !visibility.isInvisible)
-                IconButton(
-                  icon: Badge(
-                    isLabelVisible: filter.activeCount > 0,
-                    label: Text(filter.activeCount.toString()),
-                    child: const Icon(Icons.filter_list),
+                  IconButton(
+                    icon: Badge(
+                      isLabelVisible: filter.activeCount > 0,
+                      label: Text(filter.activeCount.toString()),
+                      child: const Icon(Icons.filter_list),
+                    ),
+                    onPressed: () => _openFilterSheet(
+                      categories: categoriesAsync.valueOrNull ?? const [],
+                      transactions:
+                          allTransactionsAsync.valueOrNull ?? const [],
+                    ),
                   ),
-                  onPressed: () => _openFilterSheet(
-                    categories: categoriesAsync.valueOrNull ?? const [],
-                    transactions: allTransactionsAsync.valueOrNull ?? const [],
-                  ),
-                ),
               ],
         bottom: TabBar(
           controller: _tabController,
@@ -259,7 +258,10 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
         ],
       );
     }
-    return TransactionListGrouped(transactions: transactions);
+    return TransactionListGrouped(
+      transactions: transactions,
+      collapseAllSignal: _collapseAllSignal,
+    );
   }
 }
 
