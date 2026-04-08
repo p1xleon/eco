@@ -10,14 +10,50 @@ import '../../features/transactions/data/providers/transaction_repository_provid
 import '../../features/transactions/presentation/providers/transaction_provider.dart';
 import 'transaction_card.dart';
 
-class TransactionListGrouped extends ConsumerWidget {
+class TransactionListGrouped extends ConsumerStatefulWidget {
   final List<TransactionModel> transactions;
+  final int collapseAllSignal;
 
-  const TransactionListGrouped({super.key, required this.transactions});
+  const TransactionListGrouped({
+    super.key,
+    required this.transactions,
+    this.collapseAllSignal = 0,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final grouped = groupTransactionsByMonth(transactions);
+  ConsumerState<TransactionListGrouped> createState() =>
+      _TransactionListGroupedState();
+}
+
+class _TransactionListGroupedState
+    extends ConsumerState<TransactionListGrouped> {
+  final Set<int> _collapsedMonthKeys = <int>{};
+
+  void _toggleMonth(int monthKey) {
+    setState(() {
+      if (_collapsedMonthKeys.contains(monthKey)) {
+        _collapsedMonthKeys.remove(monthKey);
+      } else {
+        _collapsedMonthKeys.add(monthKey);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant TransactionListGrouped oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.collapseAllSignal != widget.collapseAllSignal) {
+      final grouped = groupTransactionsByMonth(widget.transactions);
+      _collapsedMonthKeys
+        ..clear()
+        ..addAll(grouped.map((group) => group.monthKey));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final grouped = groupTransactionsByMonth(widget.transactions);
     final categoriesByIdAsync = ref.watch(categoriesByIdProvider);
     final visibility = ref.watch(transactionVisibilityProvider);
 
@@ -29,6 +65,8 @@ class TransactionListGrouped extends ConsumerWidget {
           final group = grouped[index];
           return _MonthSection(
             group: group,
+            isCollapsed: _collapsedMonthKeys.contains(group.monthKey),
+            onToggle: () => _toggleMonth(group.monthKey),
             categoriesById: categoriesById,
             visibility: visibility,
           );
@@ -36,15 +74,15 @@ class TransactionListGrouped extends ConsumerWidget {
       ),
       loading: () => ListView.builder(
         padding: const EdgeInsets.only(bottom: 24),
-        itemCount: transactions.length,
+        itemCount: widget.transactions.length,
         itemBuilder: (context, index) =>
-            TransactionCard(transaction: transactions[index]),
+            TransactionCard(transaction: widget.transactions[index]),
       ),
       error: (_, _) => ListView.builder(
         padding: const EdgeInsets.only(bottom: 24),
-        itemCount: transactions.length,
+        itemCount: widget.transactions.length,
         itemBuilder: (context, index) =>
-            TransactionCard(transaction: transactions[index]),
+            TransactionCard(transaction: widget.transactions[index]),
       ),
     );
   }
@@ -52,58 +90,96 @@ class TransactionListGrouped extends ConsumerWidget {
 
 class _MonthSection extends StatelessWidget {
   final TransactionMonthGroup group;
+  final bool isCollapsed;
+  final VoidCallback onToggle;
   final Map<int, CategoryModel> categoriesById;
   final TransactionVisibilityState visibility;
 
   const _MonthSection({
     required this.group,
+    required this.isCollapsed,
+    required this.onToggle,
     required this.categoriesById,
     required this.visibility,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-          child: Text(
-            group.title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-          child: Row(
-            children: [
-              Text(
-                visibility.displayAmount(
-                  "+ ₹${group.income.toStringAsFixed(2)}",
-                ),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w600,
+    final scheme = Theme.of(context).colorScheme;
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInOut,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onToggle,
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            group.title,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                visibility.displayAmount(
+                                  "+ ₹${group.income.toStringAsFixed(2)}",
+                                ),
+                                style: TextStyle(
+                                  color: scheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Text(
+                                visibility.displayAmount(
+                                  "- ₹${group.expense.toStringAsFixed(2)}",
+                                ),
+                                style: TextStyle(
+                                  color: scheme.error,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(
+                      isCollapsed ? Icons.expand_more : Icons.expand_less,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 16),
-              Text(
-                visibility.displayAmount(
-                  "- ₹${group.expense.toStringAsFixed(2)}",
-                ),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-        ...group.transactions.map(
-          (tx) =>
-              _TransactionTile(tx: tx, category: categoriesById[tx.categoryId]),
-        ),
-      ],
+          if (!isCollapsed)
+            ...group.transactions.map(
+              (tx) => _TransactionTile(
+                tx: tx,
+                category: categoriesById[tx.categoryId],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
