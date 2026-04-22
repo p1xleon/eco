@@ -51,3 +51,5 @@ Future<void> main() async {
     ),
   );
 }
+
+//flutter build apk --profile

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/privacy/transaction_visibility.dart';
 import '../../core/utils/group_transactions.dart';
@@ -28,6 +29,46 @@ class TransactionListGrouped extends ConsumerStatefulWidget {
 class _TransactionListGroupedState
     extends ConsumerState<TransactionListGrouped> {
   final Set<int> _collapsedMonthKeys = <int>{};
+  final Set<int> _selectedTransactionIds = <int>{};
+  static final NumberFormat _amountFormat = NumberFormat('#,##0.00');
+
+  bool get _isSelectionMode => _selectedTransactionIds.isNotEmpty;
+
+  void _startSelectionMode(TransactionModel transaction) {
+    setState(() {
+      _selectedTransactionIds
+        ..clear()
+        ..add(transaction.id);
+    });
+  }
+
+  void _toggleSelected(TransactionModel transaction) {
+    setState(() {
+      if (_selectedTransactionIds.contains(transaction.id)) {
+        _selectedTransactionIds.remove(transaction.id);
+      } else {
+        _selectedTransactionIds.add(transaction.id);
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectedTransactionIds.clear();
+    });
+  }
+
+  double _selectedTotal(List<TransactionModel> transactions) {
+    if (_selectedTransactionIds.isEmpty) return 0;
+    return transactions
+        .where((tx) => _selectedTransactionIds.contains(tx.id))
+        .fold<double>(
+          0,
+          (sum, tx) =>
+              sum +
+              (tx.type == TransactionType.expense ? -tx.amount : tx.amount),
+        );
+  }
 
   void _toggleMonth(int monthKey) {
     setState(() {
@@ -49,6 +90,11 @@ class _TransactionListGroupedState
         ..clear()
         ..addAll(grouped.map((group) => group.monthKey));
     }
+
+    if (_selectedTransactionIds.isNotEmpty) {
+      final idsInList = widget.transactions.map((tx) => tx.id).toSet();
+      _selectedTransactionIds.removeWhere((id) => !idsInList.contains(id));
+    }
   }
 
   @override
@@ -58,20 +104,39 @@ class _TransactionListGroupedState
     final visibility = ref.watch(transactionVisibilityProvider);
 
     return categoriesByIdAsync.when(
-      data: (categoriesById) => ListView.builder(
-        padding: const EdgeInsets.only(bottom: 24),
-        itemCount: grouped.length,
-        itemBuilder: (context, index) {
-          final group = grouped[index];
-          return _MonthSection(
-            group: group,
-            isCollapsed: _collapsedMonthKeys.contains(group.monthKey),
-            onToggle: () => _toggleMonth(group.monthKey),
-            categoriesById: categoriesById,
-            visibility: visibility,
-          );
-        },
-      ),
+      data: (categoriesById) {
+        final selectedTotal = _selectedTotal(widget.transactions);
+        return Column(
+          children: [
+            if (_isSelectionMode)
+              _SelectionSummaryBar(
+                count: _selectedTransactionIds.length,
+                total: selectedTotal,
+                onDone: _exitSelectionMode,
+              ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.only(bottom: 24),
+                itemCount: grouped.length,
+                itemBuilder: (context, index) {
+                  final group = grouped[index];
+                  return _MonthSection(
+                    group: group,
+                    isCollapsed: _collapsedMonthKeys.contains(group.monthKey),
+                    onToggle: () => _toggleMonth(group.monthKey),
+                    categoriesById: categoriesById,
+                    visibility: visibility,
+                    isSelectionMode: _isSelectionMode,
+                    selectedTransactionIds: _selectedTransactionIds,
+                    onStartSelection: _startSelectionMode,
+                    onToggleSelection: _toggleSelected,
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
       loading: () => ListView.builder(
         padding: const EdgeInsets.only(bottom: 24),
         itemCount: widget.transactions.length,
@@ -94,6 +159,10 @@ class _MonthSection extends StatelessWidget {
   final VoidCallback onToggle;
   final Map<int, CategoryModel> categoriesById;
   final TransactionVisibilityState visibility;
+  final bool isSelectionMode;
+  final Set<int> selectedTransactionIds;
+  final ValueChanged<TransactionModel> onStartSelection;
+  final ValueChanged<TransactionModel> onToggleSelection;
 
   const _MonthSection({
     required this.group,
@@ -101,6 +170,10 @@ class _MonthSection extends StatelessWidget {
     required this.onToggle,
     required this.categoriesById,
     required this.visibility,
+    required this.isSelectionMode,
+    required this.selectedTransactionIds,
+    required this.onStartSelection,
+    required this.onToggleSelection,
   });
 
   @override
@@ -176,6 +249,10 @@ class _MonthSection extends StatelessWidget {
               (tx) => _TransactionTile(
                 tx: tx,
                 category: categoriesById[tx.categoryId],
+                isSelectionMode: isSelectionMode,
+                isSelected: selectedTransactionIds.contains(tx.id),
+                onStartSelection: onStartSelection,
+                onToggleSelection: onToggleSelection,
               ),
             ),
         ],
@@ -187,13 +264,38 @@ class _MonthSection extends StatelessWidget {
 class _TransactionTile extends ConsumerWidget {
   final TransactionModel tx;
   final CategoryModel? category;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final ValueChanged<TransactionModel> onStartSelection;
+  final ValueChanged<TransactionModel> onToggleSelection;
 
-  const _TransactionTile({required this.tx, required this.category});
+  const _TransactionTile({
+    required this.tx,
+    required this.category,
+    required this.isSelectionMode,
+    required this.isSelected,
+    required this.onStartSelection,
+    required this.onToggleSelection,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repo = ref.read(transactionRepositoryProvider);
     final scheme = Theme.of(context).colorScheme;
+
+    final card = TransactionCard(
+      transaction: tx,
+      category: category,
+      isSelectionMode: isSelectionMode,
+      isSelected: isSelected,
+      onTapOverride: isSelectionMode ? () => onToggleSelection(tx) : null,
+      onLongPressOverride: isSelectionMode ? () => onToggleSelection(tx) : null,
+      onSelectMultiple: onStartSelection,
+    );
+
+    if (isSelectionMode) {
+      return card;
+    }
 
     return Dismissible(
       key: ValueKey(tx.id),
@@ -220,7 +322,65 @@ class _TransactionTile extends ConsumerWidget {
           );
         }
       },
-      child: TransactionCard(transaction: tx, category: category),
+      child: card,
+    );
+  }
+}
+
+class _SelectionSummaryBar extends StatelessWidget {
+  final int count;
+  final double total;
+  final VoidCallback onDone;
+
+  const _SelectionSummaryBar({
+    required this.count,
+    required this.total,
+    required this.onDone,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final sign = total >= 0 ? '+' : '−';
+    final amountLabel =
+        '$sign ₹${_TransactionListGroupedState._amountFormat.format(total.abs())}';
+    final countLabel = '$count selected';
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: scheme.primary.withValues(alpha: 0.25),
+          width: 0.9,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Selection mode',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$countLabel • Total $amountLabel',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          TextButton(onPressed: onDone, child: const Text('Done')),
+        ],
+      ),
     );
   }
 }

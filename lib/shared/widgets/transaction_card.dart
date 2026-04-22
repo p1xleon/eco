@@ -19,12 +19,22 @@ class TransactionCard extends ConsumerWidget {
   final TransactionModel transaction;
   final CategoryModel? category;
   final EdgeInsetsGeometry margin;
+  final VoidCallback? onTapOverride;
+  final VoidCallback? onLongPressOverride;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final ValueChanged<TransactionModel>? onSelectMultiple;
 
   const TransactionCard({
     super.key,
     required this.transaction,
     this.category,
     this.margin = const EdgeInsets.fromLTRB(16, 0, 16, 10),
+    this.onTapOverride,
+    this.onLongPressOverride,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onSelectMultiple,
   });
 
   @override
@@ -143,16 +153,25 @@ class TransactionCard extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           child: InkWell(
             borderRadius: BorderRadius.circular(14),
-            onTap: () => _openDetails(context),
-            onLongPress: () {
-              HapticFeedback.mediumImpact();
-              _showQuickActions(context, ref);
-            },
+            onTap: onTapOverride ?? () => _openDetails(context),
+            onLongPress:
+                onLongPressOverride ??
+                () {
+                  HapticFeedback.mediumImpact();
+                  _showQuickActions(context, ref);
+                },
             child: Ink(
               decoration: BoxDecoration(
-                color: scheme.surface,
+                color: isSelectionMode && isSelected
+                    ? accentColor.withValues(alpha: 0.08)
+                    : scheme.surface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: borderColor, width: 1),
+                border: Border.all(
+                  color: isSelectionMode && isSelected
+                      ? accentColor
+                      : borderColor,
+                  width: isSelectionMode && isSelected ? 1.2 : 1,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: scheme.shadow.withValues(alpha: 0.04),
@@ -267,6 +286,19 @@ class TransactionCard extends ConsumerWidget {
                                       const SizedBox(width: 6),
                                       buildOverflowMenu(),
                                     ],
+                                    if (isSelectionMode) ...[
+                                      const SizedBox(width: 6),
+                                      Icon(
+                                        isSelected
+                                            ? Icons.check_circle
+                                            : Icons.radio_button_unchecked,
+                                        color: isSelected
+                                            ? accentColor
+                                            : scheme.onSurfaceVariant
+                                                  .withValues(alpha: 0.55),
+                                        size: 20,
+                                      ),
+                                    ],
                                   ],
                                 ),
                                 const SizedBox(height: 12),
@@ -376,6 +408,20 @@ class TransactionCard extends ConsumerWidget {
                               letterSpacing: -0.55,
                             ),
                           ),
+                          if (isSelectionMode) ...[
+                            const SizedBox(width: 8),
+                            Icon(
+                              isSelected
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: isSelected
+                                  ? accentColor
+                                  : scheme.onSurfaceVariant.withValues(
+                                      alpha: 0.55,
+                                    ),
+                              size: 20,
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -730,6 +776,18 @@ class TransactionCard extends ConsumerWidget {
                   _openDuplicate(context);
                 },
               ),
+              if (onSelectMultiple != null)
+                _ActionTile(
+                  icon: Icons.playlist_add_check_circle_outlined,
+                  label: 'Select multiple',
+                  subtitle: 'Select transactions and calculate total',
+                  iconBg: const Color(0xFF0F766E).withValues(alpha: 0.12),
+                  iconColor: const Color(0xFF0F766E),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    onSelectMultiple!(transaction);
+                  },
+                ),
               _ActionTile(
                 icon: transaction.status == TransactionStatus.pending
                     ? Icons.check_circle_outline_rounded
