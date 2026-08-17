@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/privacy/transaction_visibility.dart';
+import '../../../../core/sync/sync_providers.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../../transactions/data/models/transaction_model.dart';
-import '../../../transactions/presentation/providers/transaction_provider.dart';
 import '../../data/models/recurring_transaction_model.dart';
 import '../providers/recurring_transaction_provider.dart';
 
@@ -47,8 +48,15 @@ class _RecurringTransactionsViewState
   Widget build(BuildContext context) {
     final recurringAsync = ref.watch(recurringTransactionsProvider);
     final dueAsync = ref.watch(dueRecurringTransactionsProvider);
+    final visibility = ref.watch(transactionVisibilityProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final service = ref.read(recurringTransactionServiceProvider);
+    final visibleRecurringAsync = recurringAsync.whenData(
+      visibility.applyToRecurringTemplates,
+    );
+    final visibleDueAsync = dueAsync.whenData(
+      visibility.applyToRecurringTemplates,
+    );
 
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -70,10 +78,14 @@ class _RecurringTransactionsViewState
             ),
             const SizedBox(height: 16),
           ],
-          dueAsync.when(
+          visibleDueAsync.when(
             data: (dueItems) {
               if (dueItems.isEmpty) {
-                return const _EmptyDueState();
+                return _EmptyDueState(
+                  message: visibility.isInvisible
+                      ? 'Invisible mode is on. Existing recurring templates are hidden until you add a new one.'
+                      : 'No recurring items are due right now.',
+                );
               }
 
               final overdueCount = dueItems
@@ -95,7 +107,7 @@ class _RecurringTransactionsViewState
                 for (final item in categories) item.id: item,
               };
 
-              return dueAsync.when(
+              return visibleDueAsync.when(
                 data: (dueItems) {
                   if (dueItems.isEmpty) {
                     return const SizedBox.shrink();
@@ -110,6 +122,7 @@ class _RecurringTransactionsViewState
                             child: _RecurringTemplateCard(
                               template: item,
                               category: categoryMap[item.categoryId],
+                              visibility: visibility,
                               isDue: true,
                               isOverdue: service.isOverdue(item),
                               onConfirm: () => _confirmTemplate(item),
@@ -135,10 +148,7 @@ class _RecurringTransactionsViewState
             error: (e, _) => Text(e.toString()),
           ),
           const SizedBox(height: 12),
-          Text(
-            'All Templates',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('All Templates', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           categoriesAsync.when(
             data: (categories) {
@@ -146,10 +156,14 @@ class _RecurringTransactionsViewState
                 for (final item in categories) item.id: item,
               };
 
-              return recurringAsync.when(
+              return visibleRecurringAsync.when(
                 data: (templates) {
                   if (templates.isEmpty) {
-                    return const _EmptyTemplatesState();
+                    return _EmptyTemplatesState(
+                      message: visibility.isInvisible
+                          ? 'Invisible mode is on. Existing recurring templates are hidden until you add a new one.'
+                          : 'Create a recurring template for bills, subscriptions, or salary.',
+                    );
                   }
 
                   return Column(
@@ -160,6 +174,7 @@ class _RecurringTransactionsViewState
                             child: _RecurringTemplateCard(
                               template: item,
                               category: categoryMap[item.categoryId],
+                              visibility: visibility,
                               isDue: service.isDue(item),
                               isOverdue: service.isOverdue(item),
                               onConfirm: service.isDue(item)
@@ -181,8 +196,7 @@ class _RecurringTransactionsViewState
                         .toList(),
                   );
                 },
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Text(e.toString()),
               );
             },
@@ -195,10 +209,8 @@ class _RecurringTransactionsViewState
   }
 
   Future<void> _refresh() async {
-    ref.invalidate(recurringTransactionsProvider);
-    ref.invalidate(dueRecurringTransactionsProvider);
-    ref.invalidate(transactionsProvider);
-    await ref.read(recurringTransactionsProvider.future);
+    // Explicit user request, so bypass the recency window.
+    await syncNow(ref);
   }
 
   Future<void> _openEditor({
@@ -214,7 +226,10 @@ class _RecurringTransactionsViewState
           categories: categories,
           initial: initial,
           onSave: (template) async {
-            await service.saveTemplate(template);
+            final saved = await service.saveTemplate(template);
+            ref
+                .read(transactionVisibilityProvider.notifier)
+                .registerVisibleRecurringTemplate(saved);
             return true;
           },
         ),
@@ -324,9 +339,8 @@ class _RecurringTransactionsViewState
   Future<double?> _promptForAmount(double? initialAmount) async {
     return showDialog<double>(
       context: context,
-      builder: (context) => _ConfirmRecurringAmountDialog(
-        initialAmount: initialAmount,
-      ),
+      builder: (context) =>
+          _ConfirmRecurringAmountDialog(initialAmount: initialAmount),
     );
   }
 
@@ -383,10 +397,7 @@ class _ConfirmRecurringAmountDialogState
       content: TextField(
         controller: _controller,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(
-          labelText: 'Amount',
-          errorText: _errorText,
-        ),
+        decoration: InputDecoration(labelText: 'Amount', errorText: _errorText),
         autofocus: true,
       ),
       actions: [
@@ -428,7 +439,9 @@ class _DueSectionHeader extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.primaryContainer.withValues(alpha: 0.34),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.30)),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.30),
+        ),
       ),
       child: Row(
         children: [
@@ -459,6 +472,7 @@ class _DueSectionHeader extends StatelessWidget {
 class _RecurringTemplateCard extends StatelessWidget {
   final RecurringTransactionModel template;
   final CategoryModel? category;
+  final TransactionVisibilityState visibility;
   final bool isDue;
   final bool isOverdue;
   final VoidCallback? onConfirm;
@@ -470,6 +484,7 @@ class _RecurringTemplateCard extends StatelessWidget {
   const _RecurringTemplateCard({
     required this.template,
     required this.category,
+    required this.visibility,
     required this.isDue,
     required this.isOverdue,
     required this.onConfirm,
@@ -487,17 +502,31 @@ class _RecurringTemplateCard extends StatelessWidget {
         : scheme.primary;
     final categoryColor = category != null ? Color(category!.color) : accent;
     final dateFormat = DateFormat('dd MMM yyyy');
+    final displayTitle = visibility.displayRecurringTitle(template);
+    final displayCategory = category == null
+        ? null
+        : visibility.displayCategory(
+            category!.name,
+            seed: 'recurring-category:${template.id}:${category!.name}',
+          );
+    final displayNote = visibility.displayText(
+      template.note,
+      seed: 'recurring-note:${template.id}:${template.note ?? ''}',
+    );
+    final displayAmount = template.amountType == RecurringAmountType.fixed
+        ? visibility.displayAmount(
+            template.defaultAmount != null
+                ? '₹${template.defaultAmount!.toStringAsFixed(2)}'
+                : '—',
+          )
+        : visibility.isMasked
+        ? '•••'
+        : 'Variable amount';
     final chips = <Widget>[
       _MetaChip(label: _intervalLabel(template), color: scheme.secondary),
-      if (category != null)
-        _MetaChip(label: category!.name, color: categoryColor),
-      _MetaChip(
-        label: template.amountType == RecurringAmountType.fixed
-            ? 'Fixed ${template.defaultAmount != null ? '₹${template.defaultAmount!.toStringAsFixed(2)}' : ''}'
-                  .trim()
-            : 'Variable amount',
-        color: accent,
-      ),
+      if (displayCategory != null)
+        _MetaChip(label: displayCategory, color: categoryColor),
+      _MetaChip(label: displayAmount, color: accent),
       if (!template.isActive) _MetaChip(label: 'Paused', color: scheme.outline),
       if (isOverdue) _MetaChip(label: 'Overdue', color: scheme.error),
       if (!isOverdue && isDue && template.isActive)
@@ -518,7 +547,7 @@ class _RecurringTemplateCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        template.title,
+                        displayTitle,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 4),
@@ -535,7 +564,7 @@ class _RecurringTemplateCard extends StatelessWidget {
             if (template.note != null && template.note!.trim().isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
-                template.note!.trim(),
+                displayNote,
                 style: TextStyle(color: scheme.onSurfaceVariant),
               ),
             ],
@@ -936,7 +965,9 @@ class _RecurringTemplateEditorSheetState
 }
 
 class _EmptyDueState extends StatelessWidget {
-  const _EmptyDueState();
+  final String message;
+
+  const _EmptyDueState({required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -948,23 +979,21 @@ class _EmptyDueState extends StatelessWidget {
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(24),
       ),
-      child: const Text('No recurring items are due right now.'),
+      child: Text(message),
     );
   }
 }
 
 class _EmptyTemplatesState extends StatelessWidget {
-  const _EmptyTemplatesState();
+  final String message;
+
+  const _EmptyTemplatesState({required this.message});
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.symmetric(vertical: 32),
-      child: Center(
-        child: Text(
-          'Create a recurring template for bills, subscriptions, or salary.',
-        ),
-      ),
+      child: Center(child: Text(message)),
     );
   }
 }

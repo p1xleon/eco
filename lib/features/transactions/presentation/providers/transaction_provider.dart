@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../../core/auth/auth_provider.dart';
+import '../../../../core/sync/sync_state.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/providers/transaction_repository_provider.dart';
 import 'transaction_filter.dart';
@@ -87,13 +88,15 @@ final filteredTransactionsProvider =
             return false;
           }
 
+          // Driven by sync state rather than `remoteId`, so a synced record
+          // edited offline also counts as local-only until it is pushed.
           if (filter.syncStatus == SyncStatusFilter.syncedOnly &&
-              tx.remoteId == null) {
+              tx.syncState.isPending) {
             return false;
           }
 
           if (filter.syncStatus == SyncStatusFilter.localOnly &&
-              tx.remoteId != null) {
+              !tx.syncState.isPending) {
             return false;
           }
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/privacy/transaction_visibility.dart';
+import '../../core/sync/sync_state.dart';
 import '../../features/categories/data/models/category_model.dart';
 import '../../features/recurring/presentation/providers/recurring_transaction_provider.dart';
 import '../../features/transactions/data/models/transaction_model.dart';
@@ -45,6 +46,7 @@ class TransactionCard extends ConsumerWidget {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isExpense = transaction.type == TransactionType.expense;
     final isPending = transaction.status == TransactionStatus.pending;
+    final isAwaitingSync = transaction.syncState.isPending;
     final showOverflowMenu = screenWidth >= 600;
     final isWideLayout = screenWidth >= 760;
 
@@ -236,6 +238,15 @@ class TransactionCard extends ConsumerWidget {
                                       borderColor: scheme.outlineVariant
                                           .withValues(alpha: 0.32),
                                     ),
+                                    if (isAwaitingSync)
+                                      _MetaTag(
+                                        label: 'Not synced',
+                                        textColor: scheme.onSecondaryContainer,
+                                        backgroundColor:
+                                            scheme.secondaryContainer,
+                                        borderColor: scheme.secondary
+                                            .withValues(alpha: 0.30),
+                                      ),
                                     if (hasMethod)
                                       _MetaTag(
                                         label: displayPaymentMethod,
@@ -372,6 +383,15 @@ class TransactionCard extends ConsumerWidget {
                                     alpha: 0.32,
                                   ),
                                 ),
+                                if (isAwaitingSync)
+                                  _MetaTag(
+                                    label: 'Not synced',
+                                    textColor: scheme.onSecondaryContainer,
+                                    backgroundColor: scheme.secondaryContainer,
+                                    borderColor: scheme.secondary.withValues(
+                                      alpha: 0.30,
+                                    ),
+                                  ),
                                 if (hasMethod)
                                   _MetaTag(
                                     label: displayPaymentMethod,

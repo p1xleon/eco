@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../network/remote_call.dart';
+
 class AuthRepository {
   final SupabaseClient client;
 
@@ -26,6 +28,15 @@ class AuthRepository {
   }
 
   Future<void> signOut() async {
-    await client.auth.signOut();
+    try {
+      await client.auth.signOut();
+    } catch (error) {
+      // The local session is cleared before the server is told, so a failure
+      // here (no connection, expired token) must not leave the user stuck
+      // signed in.
+      final isUnreachable =
+          error is AuthRetryableFetchException || isNetworkFailure(error);
+      if (!isUnreachable) rethrow;
+    }
   }
 }

@@ -61,26 +61,47 @@ const RecurringTransactionModelSchema = CollectionSchema(
       enumMap: _RecurringTransactionModelintervalTypeEnumValueMap,
     ),
     r'isActive': PropertySchema(id: 8, name: r'isActive', type: IsarType.bool),
-    r'nextDueDate': PropertySchema(
+    r'lastSyncError': PropertySchema(
       id: 9,
+      name: r'lastSyncError',
+      type: IsarType.string,
+    ),
+    r'localUpdatedAt': PropertySchema(
+      id: 10,
+      name: r'localUpdatedAt',
+      type: IsarType.dateTime,
+    ),
+    r'nextDueDate': PropertySchema(
+      id: 11,
       name: r'nextDueDate',
       type: IsarType.dateTime,
     ),
-    r'note': PropertySchema(id: 10, name: r'note', type: IsarType.string),
+    r'note': PropertySchema(id: 12, name: r'note', type: IsarType.string),
     r'remoteId': PropertySchema(
-      id: 11,
+      id: 13,
       name: r'remoteId',
       type: IsarType.string,
     ),
-    r'title': PropertySchema(id: 12, name: r'title', type: IsarType.string),
+    r'syncAttempts': PropertySchema(
+      id: 14,
+      name: r'syncAttempts',
+      type: IsarType.long,
+    ),
+    r'syncState': PropertySchema(
+      id: 15,
+      name: r'syncState',
+      type: IsarType.byte,
+      enumMap: _RecurringTransactionModelsyncStateEnumValueMap,
+    ),
+    r'title': PropertySchema(id: 16, name: r'title', type: IsarType.string),
     r'type': PropertySchema(
-      id: 13,
+      id: 17,
       name: r'type',
       type: IsarType.byte,
       enumMap: _RecurringTransactionModeltypeEnumValueMap,
     ),
     r'updatedAt': PropertySchema(
-      id: 14,
+      id: 18,
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
@@ -109,6 +130,12 @@ int _recurringTransactionModelEstimateSize(
   var bytesCount = offsets.last;
   {
     final value = object.accountId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
+    final value = object.lastSyncError;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
     }
@@ -144,12 +171,16 @@ void _recurringTransactionModelSerialize(
   writer.writeLong(offsets[6], object.intervalCount);
   writer.writeByte(offsets[7], object.intervalType.index);
   writer.writeBool(offsets[8], object.isActive);
-  writer.writeDateTime(offsets[9], object.nextDueDate);
-  writer.writeString(offsets[10], object.note);
-  writer.writeString(offsets[11], object.remoteId);
-  writer.writeString(offsets[12], object.title);
-  writer.writeByte(offsets[13], object.type.index);
-  writer.writeDateTime(offsets[14], object.updatedAt);
+  writer.writeString(offsets[9], object.lastSyncError);
+  writer.writeDateTime(offsets[10], object.localUpdatedAt);
+  writer.writeDateTime(offsets[11], object.nextDueDate);
+  writer.writeString(offsets[12], object.note);
+  writer.writeString(offsets[13], object.remoteId);
+  writer.writeLong(offsets[14], object.syncAttempts);
+  writer.writeByte(offsets[15], object.syncState.index);
+  writer.writeString(offsets[16], object.title);
+  writer.writeByte(offsets[17], object.type.index);
+  writer.writeDateTime(offsets[18], object.updatedAt);
 }
 
 RecurringTransactionModel _recurringTransactionModelDeserialize(
@@ -177,16 +208,24 @@ RecurringTransactionModel _recurringTransactionModelDeserialize(
       )] ??
       RecurringIntervalType.daily;
   object.isActive = reader.readBool(offsets[8]);
-  object.nextDueDate = reader.readDateTime(offsets[9]);
-  object.note = reader.readStringOrNull(offsets[10]);
-  object.remoteId = reader.readStringOrNull(offsets[11]);
-  object.title = reader.readString(offsets[12]);
+  object.lastSyncError = reader.readStringOrNull(offsets[9]);
+  object.localUpdatedAt = reader.readDateTimeOrNull(offsets[10]);
+  object.nextDueDate = reader.readDateTime(offsets[11]);
+  object.note = reader.readStringOrNull(offsets[12]);
+  object.remoteId = reader.readStringOrNull(offsets[13]);
+  object.syncAttempts = reader.readLong(offsets[14]);
+  object.syncState =
+      _RecurringTransactionModelsyncStateValueEnumMap[reader.readByteOrNull(
+        offsets[15],
+      )] ??
+      SyncState.synced;
+  object.title = reader.readString(offsets[16]);
   object.type =
       _RecurringTransactionModeltypeValueEnumMap[reader.readByteOrNull(
-        offsets[13],
+        offsets[17],
       )] ??
       TransactionType.income;
-  object.updatedAt = reader.readDateTimeOrNull(offsets[14]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[18]);
   return object;
 }
 
@@ -222,20 +261,31 @@ P _recurringTransactionModelDeserializeProp<P>(
     case 8:
       return (reader.readBool(offset)) as P;
     case 9:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 10:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 11:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 12:
-      return (reader.readString(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 13:
+      return (reader.readStringOrNull(offset)) as P;
+    case 14:
+      return (reader.readLong(offset)) as P;
+    case 15:
+      return (_RecurringTransactionModelsyncStateValueEnumMap[reader
+                  .readByteOrNull(offset)] ??
+              SyncState.synced)
+          as P;
+    case 16:
+      return (reader.readString(offset)) as P;
+    case 17:
       return (_RecurringTransactionModeltypeValueEnumMap[reader.readByteOrNull(
                 offset,
               )] ??
               TransactionType.income)
           as P;
-    case 14:
+    case 18:
       return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -261,6 +311,18 @@ const _RecurringTransactionModelintervalTypeValueEnumMap = {
   1: RecurringIntervalType.weekly,
   2: RecurringIntervalType.monthly,
   3: RecurringIntervalType.yearly,
+};
+const _RecurringTransactionModelsyncStateEnumValueMap = {
+  'synced': 0,
+  'pendingCreate': 1,
+  'pendingUpdate': 2,
+  'pendingDelete': 3,
+};
+const _RecurringTransactionModelsyncStateValueEnumMap = {
+  0: SyncState.synced,
+  1: SyncState.pendingCreate,
+  2: SyncState.pendingUpdate,
+  3: SyncState.pendingDelete,
 };
 const _RecurringTransactionModeltypeEnumValueMap = {'income': 0, 'expense': 1};
 const _RecurringTransactionModeltypeValueEnumMap = {
@@ -1272,6 +1334,310 @@ extension RecurringTransactionModelQueryFilter
     RecurringTransactionModel,
     QAfterFilterCondition
   >
+  lastSyncErrorIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'lastSyncError'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  lastSyncErrorIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'lastSyncError'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  lastSyncErrorEqualTo(String? value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'lastSyncError',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  lastSyncErrorGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'lastSyncError',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  lastSyncErrorLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'lastSyncError',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  lastSyncErrorBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'lastSyncError',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  lastSyncErrorStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'lastSyncError',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  lastSyncErrorEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'lastSyncError',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  lastSyncErrorContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'lastSyncError',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  lastSyncErrorMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'lastSyncError',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  lastSyncErrorIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'lastSyncError', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  lastSyncErrorIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'lastSyncError', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  localUpdatedAtIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'localUpdatedAt'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  localUpdatedAtIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'localUpdatedAt'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  localUpdatedAtEqualTo(DateTime? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'localUpdatedAt', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  localUpdatedAtGreaterThan(DateTime? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'localUpdatedAt',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  localUpdatedAtLessThan(DateTime? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'localUpdatedAt',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  localUpdatedAtBetween(
+    DateTime? lower,
+    DateTime? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'localUpdatedAt',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
   nextDueDateEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
@@ -1748,6 +2114,148 @@ extension RecurringTransactionModelQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         FilterCondition.greaterThan(property: r'remoteId', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  syncAttemptsEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'syncAttempts', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  syncAttemptsGreaterThan(int value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'syncAttempts',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  syncAttemptsLessThan(int value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'syncAttempts',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  syncAttemptsBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'syncAttempts',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  syncStateEqualTo(SyncState value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'syncState', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  syncStateGreaterThan(SyncState value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'syncState',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  syncStateLessThan(SyncState value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'syncState',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  syncStateBetween(
+    SyncState lower,
+    SyncState upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'syncState',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
       );
     });
   }
@@ -2328,6 +2836,50 @@ extension RecurringTransactionModelQuerySortBy
     RecurringTransactionModel,
     QAfterSortBy
   >
+  sortByLastSyncError() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastSyncError', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  sortByLastSyncErrorDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastSyncError', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  sortByLocalUpdatedAt() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'localUpdatedAt', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  sortByLocalUpdatedAtDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'localUpdatedAt', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
   sortByNextDueDate() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'nextDueDate', Sort.asc);
@@ -2386,6 +2938,50 @@ extension RecurringTransactionModelQuerySortBy
   sortByRemoteIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'remoteId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  sortBySyncAttempts() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncAttempts', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  sortBySyncAttemptsDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncAttempts', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  sortBySyncState() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncState', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  sortBySyncStateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncState', Sort.desc);
     });
   }
 
@@ -2688,6 +3284,50 @@ extension RecurringTransactionModelQuerySortThenBy
     RecurringTransactionModel,
     QAfterSortBy
   >
+  thenByLastSyncError() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastSyncError', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  thenByLastSyncErrorDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastSyncError', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  thenByLocalUpdatedAt() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'localUpdatedAt', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  thenByLocalUpdatedAtDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'localUpdatedAt', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
   thenByNextDueDate() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'nextDueDate', Sort.asc);
@@ -2746,6 +3386,50 @@ extension RecurringTransactionModelQuerySortThenBy
   thenByRemoteIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'remoteId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  thenBySyncAttempts() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncAttempts', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  thenBySyncAttemptsDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncAttempts', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  thenBySyncState() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncState', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  thenBySyncStateDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'syncState', Sort.desc);
     });
   }
 
@@ -2887,6 +3571,23 @@ extension RecurringTransactionModelQueryWhereDistinct
   }
 
   QueryBuilder<RecurringTransactionModel, RecurringTransactionModel, QDistinct>
+  distinctByLastSyncError({bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(
+        r'lastSyncError',
+        caseSensitive: caseSensitive,
+      );
+    });
+  }
+
+  QueryBuilder<RecurringTransactionModel, RecurringTransactionModel, QDistinct>
+  distinctByLocalUpdatedAt() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'localUpdatedAt');
+    });
+  }
+
+  QueryBuilder<RecurringTransactionModel, RecurringTransactionModel, QDistinct>
   distinctByNextDueDate() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'nextDueDate');
@@ -2904,6 +3605,20 @@ extension RecurringTransactionModelQueryWhereDistinct
   distinctByRemoteId({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'remoteId', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<RecurringTransactionModel, RecurringTransactionModel, QDistinct>
+  distinctBySyncAttempts() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'syncAttempts');
+    });
+  }
+
+  QueryBuilder<RecurringTransactionModel, RecurringTransactionModel, QDistinct>
+  distinctBySyncState() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'syncState');
     });
   }
 
@@ -3009,6 +3724,20 @@ extension RecurringTransactionModelQueryProperty
     });
   }
 
+  QueryBuilder<RecurringTransactionModel, String?, QQueryOperations>
+  lastSyncErrorProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'lastSyncError');
+    });
+  }
+
+  QueryBuilder<RecurringTransactionModel, DateTime?, QQueryOperations>
+  localUpdatedAtProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'localUpdatedAt');
+    });
+  }
+
   QueryBuilder<RecurringTransactionModel, DateTime, QQueryOperations>
   nextDueDateProperty() {
     return QueryBuilder.apply(this, (query) {
@@ -3027,6 +3756,20 @@ extension RecurringTransactionModelQueryProperty
   remoteIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'remoteId');
+    });
+  }
+
+  QueryBuilder<RecurringTransactionModel, int, QQueryOperations>
+  syncAttemptsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'syncAttempts');
+    });
+  }
+
+  QueryBuilder<RecurringTransactionModel, SyncState, QQueryOperations>
+  syncStateProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'syncState');
     });
   }
 

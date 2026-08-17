@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../constants/default_categories.dart';
 import '../constants/default_transaction_presets.dart';
+import '../sync/sync_state.dart';
 import '../../features/recurring/data/models/recurring_transaction_model.dart';
 import '../../features/transactions/data/models/transaction_model.dart';
 import '../../features/categories/data/models/category_model.dart';
@@ -71,9 +72,16 @@ class IsarService {
   }
 
   static Future<void> resetLocalData() async {
+    final categories = DefaultCategories.getAll();
+    // Freshly seeded defaults have never reached the server, so they queue as
+    // creates for whoever signs in next.
+    for (final category in categories) {
+      category.syncState = SyncState.pendingCreate;
+    }
+
     await isar.writeTxn(() async {
       await isar.clear();
-      await isar.categoryModels.putAll(DefaultCategories.getAll());
+      await isar.categoryModels.putAll(categories);
       await isar.transactionPresetModels.putAll(
         DefaultTransactionPresets.getAll(),
       );

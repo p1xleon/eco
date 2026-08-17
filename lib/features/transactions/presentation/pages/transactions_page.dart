@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/privacy/transaction_visibility.dart';
+import '../../../../core/sync/sync_providers.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../../recurring/presentation/pages/recurring_transactions_page.dart';
@@ -52,7 +53,8 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
   }
 
   Future<void> _refreshTransactions() async {
-    await refreshTransactions(ref);
+    // Explicit user request, so bypass the recency window.
+    await syncNow(ref);
   }
 
   void _onSearchChanged(String value) {

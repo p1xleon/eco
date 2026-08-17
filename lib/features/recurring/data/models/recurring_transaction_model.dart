@@ -1,5 +1,6 @@
 import 'package:isar_community/isar.dart';
 
+import '../../../../core/sync/sync_state.dart';
 import '../../../transactions/data/models/transaction_model.dart';
 
 part 'recurring_transaction_model.g.dart';
@@ -44,4 +45,15 @@ class RecurringTransactionModel {
   late DateTime createdAt;
 
   DateTime? updatedAt;
+
+  /// What this record still owes the server. See [SyncState].
+  @enumerated
+  SyncState syncState = SyncState.synced;
+
+  DateTime? localUpdatedAt;
+
+  /// Consecutive times the server rejected this record. See [maxSyncAttempts].
+  int syncAttempts = 0;
+
+  String? lastSyncError;
 }

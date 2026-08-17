@@ -38,6 +38,10 @@ class TransactionVisibilityStorage {
             (data['hiddenTransactionKeys'] as List<dynamic>? ?? const [])
                 .map((value) => value.toString())
                 .toSet(),
+        hiddenRecurringTemplateKeys:
+            (data['hiddenRecurringTemplateKeys'] as List<dynamic>? ?? const [])
+                .map((value) => value.toString())
+                .toSet(),
       );
     } catch (_) {
       return _defaultState;
@@ -52,6 +56,8 @@ class TransactionVisibilityStorage {
           'mode': state.mode.name,
           'invisibleSince': state.invisibleSince?.toIso8601String(),
           'hiddenTransactionKeys': state.hiddenTransactionKeys.toList(),
+          'hiddenRecurringTemplateKeys': state.hiddenRecurringTemplateKeys
+              .toList(),
         }),
         flush: true,
       );

@@ -83,6 +83,9 @@ class _TransactionDetailsPageState
               final linkedTemplate = templates
                   .where((item) => item.id == _transaction.recurringTemplateId)
                   .firstOrNull;
+              final linkedTemplateTitle = linkedTemplate == null
+                  ? null
+                  : visibility.displayRecurringTitle(linkedTemplate);
               final categoryName = visibility.displayCategory(
                 category?.name ?? 'Unknown',
                 seed:
@@ -238,7 +241,7 @@ class _TransactionDetailsPageState
                           icon: Icons.link_rounded,
                           label: 'Linked Template',
                           value:
-                              '${linkedTemplate.title} (${_intervalLabel(linkedTemplate.intervalType.name)})',
+                              '${linkedTemplateTitle ?? 'Recurring'} (${_intervalLabel(linkedTemplate.intervalType.name)})',
                         ),
                     ],
                   ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/privacy/transaction_visibility.dart';
+import '../../../../core/sync/sync_providers.dart';
 import '../../../recurring/presentation/pages/recurring_transactions_page.dart';
 import '../../../recurring/presentation/providers/recurring_transaction_provider.dart';
 import '../../../recurring/domain/services/recurring_transaction_service.dart';
@@ -132,12 +133,10 @@ class DashboardPage extends ConsumerWidget {
 
 Future<void> _refreshDashboard(WidgetRef ref) async {
   ref.invalidate(dashboardRecurringProvider);
-  ref.invalidate(recurringTransactionsProvider);
   ref.invalidate(dueRecurringTransactionsProvider);
-  await Future.wait([
-    refreshTransactions(ref),
-    ref.read(recurringTransactionsProvider.future),
-  ]);
+  // A pull-to-refresh is an explicit request, so it goes through syncNow and
+  // is never served from the recency window.
+  await syncNow(ref);
 }
 
 class _DashboardRecurringSection extends ConsumerWidget {

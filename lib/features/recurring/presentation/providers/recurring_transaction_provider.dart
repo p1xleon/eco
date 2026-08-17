@@ -5,6 +5,7 @@ import '../../../categories/presentation/providers/category_provider.dart';
 import '../../data/models/recurring_transaction_model.dart';
 import '../../data/repositories/recurring_transaction_repository.dart';
 import '../../data/providers/recurring_transaction_remote_provider.dart';
+import '../../domain/services/recurring_recovery_service.dart';
 import '../../domain/services/recurring_transaction_service.dart';
 import '../../../transactions/data/providers/transaction_repository_provider.dart';
 
@@ -32,12 +33,26 @@ final recurringTransactionServiceProvider =
       );
     });
 
+final recurringRecoveryServiceProvider = Provider<RecurringRecoveryService>((
+  ref,
+) {
+  return const RecurringRecoveryService();
+});
+
 final recurringTransactionsProvider =
     FutureProvider<List<RecurringTransactionModel>>((ref) async {
       ref.watch(authStateProvider);
       final repository = ref.read(recurringTransactionRepositoryProvider);
       return repository.getAll();
     });
+
+Future<List<RecurringTransactionModel>> refreshRecurringTransactions(
+  WidgetRef ref,
+) {
+  ref.invalidate(recurringTransactionsProvider);
+  ref.invalidate(dueRecurringTransactionsProvider);
+  return ref.read(recurringTransactionsProvider.future);
+}
 
 final dueRecurringTransactionsProvider =
     FutureProvider<List<RecurringTransactionModel>>((ref) async {

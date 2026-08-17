@@ -8,6 +8,8 @@ import 'core/privacy/transaction_visibility.dart';
 import 'core/privacy/transaction_visibility_storage.dart';
 import 'core/database/isar_service.dart';
 import 'core/database/category_seeder.dart';
+import 'core/network/network_monitor.dart';
+import 'core/sync/sync_backfill.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/theme/theme_storage.dart';
 import 'core/database/transaction_preset_seeder.dart';
@@ -19,6 +21,10 @@ Future<void> main() async {
   await IsarService.init();
   await CategorySeeder.seed();
   await TransactionPresetSeeder.ensureDefaults();
+  // Queues anything the server has never seen, including rows written before
+  // sync state was tracked and the categories just seeded above.
+  await SyncBackfill.run();
+  await NetworkMonitor.instance.init();
 
   final supabaseUrl = dotenv.env['SUPABASE_URL'];
   final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];

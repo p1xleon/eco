@@ -1,13 +1,25 @@
 import 'transaction_model.dart';
 
+/// Column holding the category's server-side uuid.
+///
+/// The legacy `category_id` column holds the *device-local* Isar id, which only
+/// means anything on the device that wrote it. Both are sent so a client
+/// running the old code keeps working; readers prefer this one.
+const transactionCategoryRemoteIdColumn = 'category_remote_id';
+
 extension TransactionMapper on TransactionModel {
-  Map<String, dynamic> toJson(String userId, {bool includeId = false}) {
+  Map<String, dynamic> toJson(
+    String userId, {
+    bool includeId = false,
+    String? categoryRemoteId,
+  }) {
     final json = <String, dynamic>{
       'user_id': userId,
       'title': title,
       'amount': amount,
       'type': type.name,
       'category_id': categoryId,
+      transactionCategoryRemoteIdColumn: categoryRemoteId,
       'status': status.name,
       'payment_method': paymentMethod,
       'payee': payee,
@@ -27,7 +39,13 @@ extension TransactionMapper on TransactionModel {
     return json;
   }
 
-  static TransactionModel fromJson(Map<String, dynamic> json) {
+  /// Builds the local record from a server row.
+  ///
+  /// [categoryId] is resolved by the caller, which is the only place that can
+  /// map the server's category uuid onto a local category. It falls back to the
+  /// legacy integer column, so rows written before the uuid column existed keep
+  /// working exactly as they did.
+  static TransactionModel fromJson(Map<String, dynamic> json, {int? categoryId}) {
     final transaction = TransactionModel();
 
     transaction.remoteId = json['id'];
@@ -45,7 +63,7 @@ extension TransactionMapper on TransactionModel {
       'pending' => TransactionStatus.pending,
       _ => TransactionStatus.paid,
     };
-    transaction.categoryId = json['category_id'];
+    transaction.categoryId = categoryId ?? (json['category_id'] as num).toInt();
     transaction.paymentMethod = json['payment_method'];
     transaction.payee = json['payee'];
     transaction.note = json['note'];

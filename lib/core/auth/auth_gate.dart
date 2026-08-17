@@ -1,12 +1,14 @@
 import 'dart:async';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../features/transactions/presentation/providers/transaction_provider.dart';
 import '../../features/auth/pages/login_page.dart';
+import '../../features/recurring/presentation/providers/recurring_transaction_provider.dart';
+import '../../features/transactions/presentation/providers/transaction_provider.dart';
 import '../../shared/widgets/app_shell.dart';
+import '../network/network_monitor.dart';
+import '../sync/sync_providers.dart';
 import 'auth_provider.dart';
 
 class AuthGate extends ConsumerWidget {
@@ -40,40 +42,56 @@ class _AuthenticatedAppShell extends ConsumerStatefulWidget {
       _AuthenticatedAppShellState();
 }
 
-class _AuthenticatedAppShellState extends ConsumerState<_AuthenticatedAppShell> {
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  bool _hadConnection = true;
+class _AuthenticatedAppShellState
+    extends ConsumerState<_AuthenticatedAppShell> {
+  StreamSubscription<bool>? _connectivitySubscription;
+  AppLifecycleListener? _lifecycleListener;
 
   @override
   void initState() {
     super.initState();
-    _initializeConnectivityListener();
-  }
 
-  Future<void> _initializeConnectivityListener() async {
-    final connectivity = Connectivity();
-    final current = await connectivity.checkConnectivity();
-    _hadConnection = _hasNetworkConnection(current);
+    // Coming back online is the moment to replay whatever was queued offline.
+    // The refresh runs a push before it pulls.
+    _connectivitySubscription = NetworkMonitor.instance.onStatusChanged.listen((
+      isOnline,
+    ) {
+      if (!isOnline || !mounted) return;
 
-    _connectivitySubscription = connectivity.onConnectivityChanged.listen((
-      results,
-    ) async {
-      final hasConnection = _hasNetworkConnection(results);
-      if (!_hadConnection && hasConnection) {
-        await refreshTransactions(ref);
-      }
-
-      _hadConnection = hasConnection;
+      unawaited(_guarded(() => syncNow(ref)));
     });
+
+    // Returning to the app is the other natural moment to catch up. This goes
+    // through the plain refresh rather than [syncNow] so the per-collection
+    // recency window still applies and a resume right after a reconnect does
+    // not sync everything twice.
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        if (!mounted) return;
+
+        unawaited(
+          _guarded(() async {
+            await refreshTransactions(ref);
+            await refreshRecurringTransactions(ref);
+          }),
+        );
+      },
+    );
   }
 
-  bool _hasNetworkConnection(List<ConnectivityResult> results) {
-    return results.any((result) => result != ConnectivityResult.none);
+  Future<void> _guarded(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (_) {
+      // Nothing to surface here: whatever failed to push stays queued, and the
+      // shell may have been torn down mid-sync by a sign-out.
+    }
   }
 
   @override
   void dispose() {
     _connectivitySubscription?.cancel();
+    _lifecycleListener?.dispose();
     super.dispose();
   }
 

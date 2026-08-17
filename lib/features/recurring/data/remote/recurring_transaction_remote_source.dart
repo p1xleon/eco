@@ -1,7 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/network/remote_call.dart';
+
 class RecurringTransactionRemoteSource {
   final SupabaseClient client;
+
+  /// See [TransactionRemoteSource]: a full fetch has to page so the sync merge
+  /// can trust it as the complete server state.
+  static const _pageSize = 1000;
 
   RecurringTransactionRemoteSource(this.client);
 
@@ -20,40 +26,59 @@ class RecurringTransactionRemoteSource {
 
   Future<Map<String, dynamic>> addRecurringTransaction(
     Map<String, dynamic> data,
-  ) async {
-    return await client
-        .from('recurring_transactions')
-        .insert(data)
-        .select()
-        .single();
+  ) {
+    return remoteCall(
+      () async => await client
+          .from('recurring_transactions')
+          .insert(data)
+          .select()
+          .single(),
+    );
   }
 
   Future<Map<String, dynamic>> updateRecurringTransaction(
     String id,
     Map<String, dynamic> data,
-  ) async {
-    return await client
-        .from('recurring_transactions')
-        .update(data)
-        .eq('id', id)
-        .eq('user_id', _currentUserId)
-        .select()
-        .single();
+  ) {
+    return remoteCall(
+      () async => await client
+          .from('recurring_transactions')
+          .update(data)
+          .eq('id', id)
+          .eq('user_id', _currentUserId)
+          .select()
+          .single(),
+    );
   }
 
   Future<List<Map<String, dynamic>>> fetchRecurringTransactions() async {
-    return await client
-        .from('recurring_transactions')
-        .select()
-        .eq('user_id', _currentUserId)
-        .order('next_due_date', ascending: true);
+    final userId = _currentUserId;
+    final all = <Map<String, dynamic>>[];
+
+    for (var offset = 0; ; offset += _pageSize) {
+      final page = await remoteCall(
+        () async => await client
+            .from('recurring_transactions')
+            .select()
+            .eq('user_id', userId)
+            .order('next_due_date', ascending: true)
+            .range(offset, offset + _pageSize - 1),
+      );
+
+      all.addAll(page);
+      if (page.length < _pageSize) break;
+    }
+
+    return all;
   }
 
-  Future<void> deleteRecurringTransaction(String id) async {
-    await client
-        .from('recurring_transactions')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', _currentUserId);
+  Future<void> deleteRecurringTransaction(String id) {
+    return remoteCall(
+      () async => await client
+          .from('recurring_transactions')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', _currentUserId),
+    );
   }
 }

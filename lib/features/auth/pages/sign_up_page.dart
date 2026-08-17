@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/auth/auth_provider.dart';
+import '../../../core/network/remote_call.dart';
 
 class SignUpPage extends ConsumerStatefulWidget {
   const SignUpPage({super.key});
@@ -284,6 +286,10 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
   }
 
   String _messageForError(Object error) {
+    if (error is AuthRetryableFetchException || isNetworkFailure(error)) {
+      return 'No connection. You need to be online to create an account.';
+    }
+
     final message = error.toString();
     if (message.isEmpty) return 'Unable to create account.';
     return message;

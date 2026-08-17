@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/recurring/data/models/recurring_transaction_model.dart';
 import '../../features/transactions/data/models/transaction_model.dart';
 
 enum TransactionVisibilityMode { normal, masked, invisible }
@@ -8,11 +9,13 @@ class TransactionVisibilityState {
   final TransactionVisibilityMode mode;
   final DateTime? invisibleSince;
   final Set<String> hiddenTransactionKeys;
+  final Set<String> hiddenRecurringTemplateKeys;
 
   const TransactionVisibilityState({
     this.mode = TransactionVisibilityMode.normal,
     this.invisibleSince,
     this.hiddenTransactionKeys = const <String>{},
+    this.hiddenRecurringTemplateKeys = const <String>{},
   });
 
   bool get isMasked => mode == TransactionVisibilityMode.masked;
@@ -38,6 +41,26 @@ class TransactionVisibilityState {
     return transactions.where(isTransactionVisible).toList();
   }
 
+  bool isRecurringTemplateVisible(RecurringTransactionModel template) {
+    if (!isInvisible) {
+      return true;
+    }
+
+    return recurringTemplateVisibilityKeys(
+      template,
+    ).every((key) => !hiddenRecurringTemplateKeys.contains(key));
+  }
+
+  List<RecurringTransactionModel> applyToRecurringTemplates(
+    List<RecurringTransactionModel> templates,
+  ) {
+    if (!isInvisible) {
+      return templates;
+    }
+
+    return templates.where(isRecurringTemplateVisible).toList();
+  }
+
   String displayAmount(String actual, {String placeholder = '•••'}) {
     return isMasked ? placeholder : actual;
   }
@@ -55,6 +78,21 @@ class TransactionVisibilityState {
     }
 
     return maskText('title:${transaction.id}:${transaction.title}', words: 2);
+  }
+
+  String displayRecurringTitle(
+    RecurringTransactionModel template, {
+    String fallback = 'Recurring',
+  }) {
+    final resolved = template.title.trim().isEmpty
+        ? fallback
+        : template.title.trim();
+
+    if (!isMasked) {
+      return resolved;
+    }
+
+    return maskText('recurring:${template.id}:${template.title}', words: 2);
   }
 
   String displayText(
@@ -117,10 +155,17 @@ class TransactionVisibilityNotifier
   void setMode(
     TransactionVisibilityMode mode, {
     List<TransactionModel> existingTransactions = const [],
+    List<RecurringTransactionModel> existingRecurringTemplates = const [],
   }) {
     if (mode == state.mode) {
       return;
     }
+
+    final recurringKeys = mode == TransactionVisibilityMode.invisible
+        ? existingRecurringTemplates
+              .expand(recurringTemplateVisibilityKeys)
+              .toSet()
+        : const <String>{};
 
     state = TransactionVisibilityState(
       mode: mode,
@@ -130,6 +175,7 @@ class TransactionVisibilityNotifier
       hiddenTransactionKeys: mode == TransactionVisibilityMode.invisible
           ? existingTransactions.map(transactionVisibilityKey).toSet()
           : const <String>{},
+      hiddenRecurringTemplateKeys: recurringKeys,
     );
     _persist(state);
   }
@@ -145,6 +191,23 @@ class TransactionVisibilityNotifier
       mode: state.mode,
       invisibleSince: state.invisibleSince,
       hiddenTransactionKeys: nextHidden,
+      hiddenRecurringTemplateKeys: state.hiddenRecurringTemplateKeys,
+    );
+    _persist(state);
+  }
+
+  void registerVisibleRecurringTemplate(RecurringTransactionModel template) {
+    if (!state.isInvisible) {
+      return;
+    }
+
+    final nextHidden = Set<String>.from(state.hiddenRecurringTemplateKeys)
+      ..removeAll(recurringTemplateVisibilityKeys(template));
+    state = TransactionVisibilityState(
+      mode: state.mode,
+      invisibleSince: state.invisibleSince,
+      hiddenTransactionKeys: state.hiddenTransactionKeys,
+      hiddenRecurringTemplateKeys: nextHidden,
     );
     _persist(state);
   }
@@ -167,6 +230,17 @@ String transactionVisibilityKey(TransactionModel transaction) {
   }
 
   return 'local:${transaction.id}';
+}
+
+Set<String> recurringTemplateVisibilityKeys(
+  RecurringTransactionModel template,
+) {
+  final keys = <String>{'local:${template.id}'};
+  final remoteId = template.remoteId?.trim();
+  if (remoteId != null && remoteId.isNotEmpty) {
+    keys.add('remote:$remoteId');
+  }
+  return keys;
 }
 
 const _maskedSyllables = [

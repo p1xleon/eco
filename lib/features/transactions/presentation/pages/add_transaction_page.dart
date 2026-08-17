@@ -211,6 +211,9 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
       ..createdAt = DateTime.now().toUtc();
 
     final savedTemplate = await service.saveTemplate(template);
+    ref
+        .read(transactionVisibilityProvider.notifier)
+        .registerVisibleRecurringTemplate(savedTemplate);
     _selectedRecurringTemplateId = savedTemplate.id;
     return savedTemplate.id;
   }

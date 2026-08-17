@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/auth/auth_provider.dart';
+import '../../../core/network/remote_call.dart';
 import 'sign_up_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -256,6 +258,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   String _messageForError(Object error) {
+    // Signing in is the one thing that genuinely needs a connection, so say so
+    // rather than showing a raw transport error.
+    if (error is AuthRetryableFetchException || isNetworkFailure(error)) {
+      return 'No connection. You need to be online to sign in.';
+    }
+
     final message = error.toString();
     if (message.isEmpty) return 'Unable to sign in.';
     return message;

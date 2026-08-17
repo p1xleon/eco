@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/privacy/transaction_visibility.dart';
 import '../../features/analytics/presentation/pages/analytics_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
+import '../../features/recurring/presentation/providers/recurring_transaction_provider.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/transactions/presentation/pages/add_transaction_page.dart';
 import '../../features/transactions/presentation/pages/transactions_page.dart';
 import '../../features/transactions/presentation/providers/transaction_provider.dart';
+import 'sync_status_banner.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
@@ -36,13 +38,19 @@ class _AppShellState extends ConsumerState<AppShell> {
     final visibility = ref.read(transactionVisibilityProvider);
     final notifier = ref.read(transactionVisibilityProvider.notifier);
     final transactions = ref.read(transactionsProvider).valueOrNull ?? const [];
+    final recurringTemplates =
+        ref.read(recurringTransactionsProvider).valueOrNull ?? const [];
     final nextMode = switch (visibility.mode) {
       TransactionVisibilityMode.normal => TransactionVisibilityMode.masked,
       TransactionVisibilityMode.masked => TransactionVisibilityMode.invisible,
       TransactionVisibilityMode.invisible => TransactionVisibilityMode.normal,
     };
 
-    notifier.setMode(nextMode, existingTransactions: transactions);
+    notifier.setMode(
+      nextMode,
+      existingTransactions: transactions,
+      existingRecurringTemplates: recurringTemplates,
+    );
 
     if (!mounted) {
       return;
@@ -81,29 +89,37 @@ class _AppShellState extends ConsumerState<AppShell> {
         child: const Icon(Icons.add),
       ),
 
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: onTap,
-        destinations: [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            label: 'Dashboard',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            label: 'Transactions',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            label: 'Analytics',
-          ),
-          NavigationDestination(
-            icon: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onLongPress: _cycleVisibilityMode,
-              child: const Icon(Icons.settings_outlined),
-            ),
-            label: 'Settings',
+      // The banner rides above the navigation bar so it never collides with a
+      // page's own app bar.
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SyncStatusBanner(),
+          NavigationBar(
+            selectedIndex: index,
+            onDestinationSelected: onTap,
+            destinations: [
+              NavigationDestination(
+                icon: Icon(Icons.dashboard_outlined),
+                label: 'Dashboard',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.receipt_long_outlined),
+                label: 'Transactions',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.bar_chart_outlined),
+                label: 'Analytics',
+              ),
+              NavigationDestination(
+                icon: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onLongPress: _cycleVisibilityMode,
+                  child: const Icon(Icons.settings_outlined),
+                ),
+                label: 'Settings',
+              ),
+            ],
           ),
         ],
       ),

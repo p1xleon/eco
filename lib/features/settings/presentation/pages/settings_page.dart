@@ -4,11 +4,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_provider.dart';
 import '../../../../core/database/isar_service.dart';
+import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/privacy/transaction_visibility.dart';
+import '../../../../core/sync/sync_providers.dart';
 import '../../../../core/theme/theme_mode_setting.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../categories/presentation/pages/categories_page.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
+import '../../../dashboard/presentation/providers/dashboard_provider.dart';
+import '../../../recurring/domain/services/recurring_recovery_service.dart';
 import '../../../recurring/presentation/pages/recurring_transactions_page.dart';
 import '../../../recurring/presentation/providers/recurring_transaction_provider.dart';
 import '../../../transactions/import/pages/import_transactions_page.dart';
@@ -88,6 +92,8 @@ class SettingsPage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 20),
+          const _SyncSection(),
+          const SizedBox(height: 16),
           _SectionCard(
             title: 'Customize',
             children: [
@@ -211,6 +217,8 @@ class SettingsPage extends ConsumerWidget {
                           nextMode,
                           existingTransactions:
                               transactionsAsync.valueOrNull ?? const [],
+                          existingRecurringTemplates:
+                              recurringAsync.valueOrNull ?? const [],
                         );
                         ScaffoldMessenger.of(context)
                           ..hideCurrentSnackBar()
@@ -311,6 +319,8 @@ class SettingsPage extends ConsumerWidget {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          const _RecurringRecoverySection(),
           const SizedBox(height: 16),
           _SectionCard(
             title: 'Account',
@@ -497,6 +507,225 @@ class _StatCard extends StatelessWidget {
   }
 }
 
+/// Connection state, how much is still queued, and a way to retry now.
+class _SyncSection extends ConsumerStatefulWidget {
+  const _SyncSection();
+
+  @override
+  ConsumerState<_SyncSection> createState() => _SyncSectionState();
+}
+
+class _SyncSectionState extends ConsumerState<_SyncSection> {
+  bool _isSyncing = false;
+
+  Future<void> _retryFailed() => _runSync(retryFailedSync);
+
+  Future<void> _syncNow() => _runSync(syncNow);
+
+  Future<void> _runSync(Future<void> Function(WidgetRef ref) action) async {
+    if (_isSyncing) return;
+
+    setState(() => _isSyncing = true);
+    try {
+      await action(ref);
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncing = false);
+      }
+    }
+
+    if (!mounted) return;
+
+    final remaining = await ref.read(pendingSyncCountProvider.future);
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            remaining == 0
+                ? 'Everything is synced'
+                : '$remaining change${remaining == 1 ? '' : 's'} still waiting to sync',
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isOnline = ref.watch(isOnlineProvider);
+    final pending = ref.watch(pendingSyncCountProvider).valueOrNull ?? 0;
+    final failures =
+        ref.watch(syncFailuresProvider).valueOrNull ?? const <SyncFailure>[];
+
+    final statusColor = isOnline ? scheme.primary : scheme.onSurfaceVariant;
+    final statusLabel = isOnline ? 'Connected' : 'Offline';
+    final detail = !isOnline
+        ? 'Everything you do is saved on this device and uploaded once you are back online.'
+        : pending == 0
+        ? 'All local changes have reached the server.'
+        : '$pending change${pending == 1 ? '' : 's'} waiting to upload.';
+
+    return _SectionCard(
+      title: 'Sync',
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.50),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      isOnline
+                          ? Icons.cloud_done_outlined
+                          : Icons.cloud_off_outlined,
+                      color: statusColor,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          statusLabel,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          detail,
+                          style: TextStyle(color: scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.tonalIcon(
+                  onPressed: _isSyncing ? null : _syncNow,
+                  icon: _isSyncing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.sync),
+                  label: Text(_isSyncing ? 'Syncing…' : 'Sync now'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (failures.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _SyncFailureList(failures: failures, onRetry: _retryFailed),
+        ],
+      ],
+    );
+  }
+}
+
+/// Records the server rejected often enough that automatic retries stopped.
+class _SyncFailureList extends StatelessWidget {
+  final List<SyncFailure> failures;
+  final VoidCallback onRetry;
+
+  const _SyncFailureList({required this.failures, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer.withValues(alpha: 0.40),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.sync_problem_outlined, color: scheme.error),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '${failures.length} item${failures.length == 1 ? '' : 's'} could not be synced',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'These stay on this device and are no longer retried automatically.',
+            style: TextStyle(color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 10),
+          for (final failure in failures.take(5))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${failure.collection}: ${failure.label}',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (failure.error != null)
+                    Text(
+                      failure.error!,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+          if (failures.length > 5)
+            Text(
+              'and ${failures.length - 5} more',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try again'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SectionCard extends StatelessWidget {
   final String title;
   final List<Widget> children;
@@ -645,6 +874,307 @@ class _DangerTile extends StatelessWidget {
   }
 }
 
+class _RecurringRecoverySection extends ConsumerStatefulWidget {
+  const _RecurringRecoverySection();
+
+  @override
+  ConsumerState<_RecurringRecoverySection> createState() =>
+      _RecurringRecoverySectionState();
+}
+
+class _RecurringRecoverySectionState
+    extends ConsumerState<_RecurringRecoverySection> {
+  bool _isInspecting = false;
+  bool _isRecovering = false;
+  RecurringRecoveryInspection? _lastInspection;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return _SectionCard(
+      title: 'Maintenance',
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.build_circle_outlined),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Recurring Recovery',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          'Inspect this device for recurring templates that were lost while linked transactions still exist.',
+                          style: TextStyle(color: scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Recovery recreates only missing templates and marks them paused. Interval settings are reset to monthly placeholders and may need manual correction.',
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+              if (_lastInspection != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _inspectionSummary(_lastInspection!),
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+              ],
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _isInspecting || _isRecovering ? null : _inspect,
+                    icon: _isInspecting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.search_outlined),
+                    label: const Text('Inspect Device Data'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _isInspecting || _isRecovering ? null : _recover,
+                    icon: _isRecovering
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.restore_outlined),
+                    label: const Text('Recover Missing Templates'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _inspect() async {
+    setState(() {
+      _isInspecting = true;
+    });
+
+    try {
+      final inspection = await ref
+          .read(recurringRecoveryServiceProvider)
+          .inspect();
+      if (!mounted) return;
+
+      setState(() {
+        _lastInspection = inspection;
+      });
+
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Recurring Recovery Check'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Text(_inspectionDetails(inspection)),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      _showSnackBar('Failed to inspect recurring data: $error');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isInspecting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _recover() async {
+    final inspection =
+        _lastInspection ??
+        await ref.read(recurringRecoveryServiceProvider).inspect();
+
+    if (!mounted) return;
+
+    setState(() {
+      _lastInspection = inspection;
+    });
+
+    if (!inspection.hasMissingCandidates) {
+      _showSnackBar(
+        'No missing recurring templates were found on this device.',
+      );
+      return;
+    }
+
+    final shouldRecover = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Recover Missing Templates'),
+        content: Text(
+          'Recover ${inspection.missingCandidates.length} missing recurring template${inspection.missingCandidates.length == 1 ? '' : 's'} as paused placeholders on this device?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Recover'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldRecover != true) {
+      return;
+    }
+
+    setState(() {
+      _isRecovering = true;
+    });
+
+    try {
+      final result = await ref
+          .read(recurringRecoveryServiceProvider)
+          .recoverMissingTemplates();
+
+      ref.invalidate(recurringTransactionsProvider);
+      ref.invalidate(dueRecurringTransactionsProvider);
+      ref.invalidate(dashboardRecurringProvider);
+
+      if (!mounted) return;
+
+      _showSnackBar(
+        result.recoveredCount == 0
+            ? 'No missing recurring templates were recovered.'
+            : 'Recovered ${result.recoveredCount} recurring template${result.recoveredCount == 1 ? '' : 's'} as paused placeholders.',
+      );
+
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Recovery Complete'),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(child: Text(_recoveryDetails(result))),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      _showSnackBar('Failed to recover recurring templates: $error');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRecovering = false;
+        });
+      }
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _inspectionSummary(RecurringRecoveryInspection inspection) {
+    return 'Found ${inspection.existingTemplateCount} existing template${inspection.existingTemplateCount == 1 ? '' : 's'}, ${inspection.linkedTransactionCount} linked transaction${inspection.linkedTransactionCount == 1 ? '' : 's'}, and ${inspection.missingCandidates.length} missing template candidate${inspection.missingCandidates.length == 1 ? '' : 's'}.';
+  }
+
+  String _inspectionDetails(RecurringRecoveryInspection inspection) {
+    final buffer = StringBuffer()
+      ..writeln(_inspectionSummary(inspection))
+      ..writeln()
+      ..writeln(
+        'Missing template candidates are inferred from transactions that still reference recurring template ids not present in the local recurring table.',
+      );
+
+    if (!inspection.hasMissingCandidates) {
+      buffer
+        ..writeln()
+        ..write('No recoverable missing recurring templates were found.');
+      return buffer.toString();
+    }
+
+    for (final candidate in inspection.missingCandidates) {
+      buffer
+        ..writeln()
+        ..writeln('Template #${candidate.templateId}: ${candidate.title}')
+        ..writeln('Linked transactions: ${candidate.linkedTransactionCount}')
+        ..writeln('Recovered amount mode: ${candidate.amountType.name}')
+        ..writeln(
+          'Recovered default amount: ${candidate.defaultAmount?.toStringAsFixed(2) ?? '—'}',
+        )
+        ..writeln('Recovered next due placeholder: ${candidate.nextDueDate}');
+    }
+
+    return buffer.toString();
+  }
+
+  String _recoveryDetails(RecurringRecoveryResult result) {
+    if (result.recoveredCount == 0) {
+      return 'No missing recurring templates were recovered.';
+    }
+
+    final buffer = StringBuffer()
+      ..writeln(
+        'Recovered ${result.recoveredCount} template${result.recoveredCount == 1 ? '' : 's'}.',
+      )
+      ..writeln()
+      ..writeln(
+        'All recovered templates were created as paused placeholders to avoid accidental due items. Review interval settings before re-enabling them.',
+      );
+
+    for (final candidate in result.recoveredCandidates) {
+      buffer
+        ..writeln()
+        ..write('Template #${candidate.templateId}: ${candidate.title}');
+    }
+
+    return buffer.toString();
+  }
+}
+
 class _LoadingCard extends StatelessWidget {
   const _LoadingCard();
 
@@ -659,31 +1189,57 @@ class _LoadingCard extends StatelessWidget {
   }
 }
 
+enum _LogoutChoice { cancel, syncFirst, discard }
+
 Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
   final container = ProviderScope.containerOf(context, listen: false);
-  final shouldLogout = await showDialog<bool>(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: const Text('Logout'),
-        content: const Text(
-          'This will clear all local data on this device and sign you out.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
-          ),
-        ],
-      );
-    },
-  );
 
-  if (shouldLogout != true) return;
+  // Logging out wipes local data, so anything that never reached the server is
+  // about to be destroyed.
+  final pending = await container.read(pendingSyncCountProvider.future);
+  if (!context.mounted) return;
+
+  final isOnline = container.read(isOnlineProvider);
+  if (!context.mounted) return;
+
+  final _LogoutChoice? choice;
+  if (pending == 0) {
+    choice = await _askToLogout(context);
+  } else {
+    choice = await _askToLogoutWithPendingChanges(
+      context,
+      pending: pending,
+      isOnline: isOnline,
+    );
+  }
+
+  if (choice == null || choice == _LogoutChoice.cancel) return;
+
+  if (choice == _LogoutChoice.syncFirst) {
+    var remaining = pending;
+    try {
+      await syncNow(ref);
+      remaining = await container.read(pendingSyncCountProvider.future);
+    } catch (_) {
+      // Treated as "still pending" below.
+    }
+
+    if (remaining > 0) {
+      // Stay logged in rather than destroy work that never got out.
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              '$remaining change${remaining == 1 ? '' : 's'} could not be synced. '
+              'You are still signed in.',
+            ),
+          ),
+        );
+      return;
+    }
+  }
 
   final auth = container.read(authRepositoryProvider);
 
@@ -694,4 +1250,66 @@ Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
   container.invalidate(categoriesProvider);
   container.invalidate(paymentMethodPresetsProvider);
   container.invalidate(payeePresetsProvider);
+}
+
+Future<_LogoutChoice?> _askToLogout(BuildContext context) {
+  return showDialog<_LogoutChoice>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Logout'),
+      content: const Text(
+        'This will clear all local data on this device and sign you out.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, _LogoutChoice.cancel),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _LogoutChoice.discard),
+          child: const Text('Logout'),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Losing unsynced work has to be a deliberate choice, not a side effect of
+/// signing out.
+Future<_LogoutChoice?> _askToLogoutWithPendingChanges(
+  BuildContext context, {
+  required int pending,
+  required bool isOnline,
+}) {
+  final label = pending == 1 ? '1 change' : '$pending changes';
+
+  return showDialog<_LogoutChoice>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Logout'),
+      content: Text(
+        isOnline
+            ? '$label on this device have not reached the server yet. Logging out '
+                  'clears all local data, so they would be lost.'
+            : '$label on this device have not reached the server yet, and you are '
+                  'offline. Logging out clears all local data, so they would be lost.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, _LogoutChoice.cancel),
+          child: const Text('Cancel'),
+        ),
+        if (isOnline)
+          TextButton(
+            onPressed: () => Navigator.pop(context, _LogoutChoice.syncFirst),
+            child: const Text('Sync, then log out'),
+          ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: Colors.red.shade600),
+          onPressed: () => Navigator.pop(context, _LogoutChoice.discard),
+          child: Text('Discard $label'),
+        ),
+      ],
+    ),
+  );
 }

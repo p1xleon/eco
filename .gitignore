@@ -55,3 +55,7 @@ app.*.map.json
 
 p1xle-ssh
 p1xle-ssh.pub
+# Isar native library, downloaded on demand by tests
+libisar.dylib
+libisar*.so
+isar.dll
