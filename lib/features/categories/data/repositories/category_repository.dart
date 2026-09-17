@@ -1,5 +1,6 @@
 import 'package:isar_community/isar.dart';
 
+import '../../../../core/crypto/field_cipher.dart';
 import '../../../../core/database/isar_service.dart';
 import '../../../../core/network/network_monitor.dart';
 import '../../../../core/network/remote_call.dart';
@@ -16,7 +17,11 @@ class CategoryRepository {
   final Isar _isar = IsarService.isar;
   final SyncGate _gate = SyncGate();
 
-  CategoryRepository(this.remote);
+  /// Encrypts what leaves the device. Null until the user sets up a key —
+  /// see [CategoryMapper.toJson].
+  final FieldCipher? cipher;
+
+  CategoryRepository(this.remote, {this.cipher});
 
   bool get _canSync =>
       remote.isAuthenticated && NetworkMonitor.instance.isOnline;
@@ -326,8 +331,10 @@ class CategoryRepository {
     final user = remote.currentUser;
     if (user == null) return category;
 
-    final data = await remote.addCategory(category.toJson(user.id));
-    return CategoryMapper.fromJson(data);
+    final data = await remote.addCategory(
+      category.toJson(user.id, cipher: cipher),
+    );
+    return CategoryMapper.fromJson(data, cipher: cipher);
   }
 
   Future<CategoryModel> updateRemoteCategory(CategoryModel category) async {
@@ -338,14 +345,16 @@ class CategoryRepository {
 
     final data = await remote.updateCategory(
       category.remoteId!,
-      category.toJson(user.id),
+      category.toJson(user.id, cipher: cipher),
     );
-    return CategoryMapper.fromJson(data);
+    return CategoryMapper.fromJson(data, cipher: cipher);
   }
 
   Future<List<CategoryModel>> fetchRemoteCategories() async {
     final data = await remote.fetchCategories();
-    return data.map(CategoryMapper.fromJson).toList();
+    return data
+        .map((json) => CategoryMapper.fromJson(json, cipher: cipher))
+        .toList();
   }
 
   Future<void> deleteRemoteCategory(String id) async {

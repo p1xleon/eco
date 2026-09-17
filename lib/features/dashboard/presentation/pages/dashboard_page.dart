@@ -233,7 +233,7 @@ class _DashboardRecurringContent extends StatelessWidget {
                 scheme.primaryContainer.withValues(alpha: 0.46),
                 scheme.secondaryContainer.withValues(alpha: 0.24),
               ],
-              begin: Alignment.topLeft,
+              begin: Alignment.topCenter,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(24),

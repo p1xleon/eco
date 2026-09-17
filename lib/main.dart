@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
+import 'core/crypto/crypto_providers.dart';
+import 'core/crypto/data_key_store.dart';
 import 'core/privacy/transaction_visibility.dart';
 import 'core/privacy/transaction_visibility_storage.dart';
 import 'core/database/isar_service.dart';
@@ -42,9 +44,19 @@ Future<void> main() async {
   final initialTheme = await ThemeStorage.load();
   final initialVisibility = await TransactionVisibilityStorage.load();
 
+  // Read before the first frame so the app knows straight away whether
+  // encryption has been set up on this device, rather than flashing the setup
+  // gate at someone who already has a key.
+  final dataKeyStore = DataKeyStore();
+  final initialDataKey = await dataKeyStore.load();
+
   runApp(
     ProviderScope(
       overrides: [
+        dataKeyStoreProvider.overrideWithValue(dataKeyStore),
+        dataKeyProvider.overrideWith(
+          (ref) => DataKeyNotifier(initialDataKey, dataKeyStore),
+        ),
         themeProvider.overrideWith((ref) => ThemeNotifier(initialTheme)),
         transactionVisibilityProvider.overrideWith(
           (ref) => TransactionVisibilityNotifier(

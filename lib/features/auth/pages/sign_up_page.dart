@@ -81,7 +81,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
               scheme.surface,
               scheme.primaryContainer.withValues(alpha: 0.42),
             ],
-            begin: Alignment.topLeft,
+            begin: Alignment.topCenter,
             end: Alignment.bottomRight,
             stops: const [0, 0.56, 1],
           ),

@@ -1,12 +1,19 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/auth/auth_provider.dart';
+import '../../../../core/backup/backup_codec.dart';
+import '../../../../core/backup/backup_providers.dart';
+import '../../../../core/crypto/crypto_providers.dart';
 import '../../../../core/database/isar_service.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../../core/sync/sync_providers.dart';
+import '../../../../core/sync/sync_state.dart';
 import '../../../../core/theme/theme_mode_setting.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../categories/presentation/pages/categories_page.dart';
@@ -18,6 +25,7 @@ import '../../../recurring/presentation/providers/recurring_transaction_provider
 import '../../../transactions/import/pages/import_transactions_page.dart';
 import '../../../transactions/presentation/providers/transaction_provider.dart';
 import '../providers/transaction_preset_provider.dart';
+import 'encryption_setup_page.dart';
 import 'transaction_presets_page.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -94,6 +102,8 @@ class SettingsPage extends ConsumerWidget {
           const SizedBox(height: 20),
           const _SyncSection(),
           const SizedBox(height: 16),
+          const _BackupSection(),
+          const SizedBox(height: 16),
           _SectionCard(
             title: 'Customize',
             children: [
@@ -133,6 +143,22 @@ class SettingsPage extends ConsumerWidget {
                     context,
                     MaterialPageRoute(
                       builder: (_) => const ImportTransactionsPage(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _SettingsActionTile(
+                icon: Icons.lock_outline,
+                title: 'Encryption',
+                subtitle: ref.watch(dataKeyProvider) == null
+                    ? 'Not set up yet — your data is stored unencrypted'
+                    : 'On · view your recovery phrase',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const EncryptionSetupPage(),
                     ),
                   );
                 },
@@ -387,7 +413,7 @@ class _ProfileCard extends StatelessWidget {
             scheme.primaryContainer.withValues(alpha: 0.82),
             scheme.secondaryContainer.withValues(alpha: 0.62),
           ],
-          begin: Alignment.topLeft,
+          begin: Alignment.topCenter,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(28),
@@ -508,6 +534,199 @@ class _StatCard extends StatelessWidget {
 }
 
 /// Connection state, how much is still queued, and a way to retry now.
+class _BackupSection extends ConsumerStatefulWidget {
+  const _BackupSection();
+
+  @override
+  ConsumerState<_BackupSection> createState() => _BackupSectionState();
+}
+
+class _BackupSectionState extends ConsumerState<_BackupSection> {
+  bool _isWorking = false;
+
+  /// Writes a snapshot and hands it to the share sheet.
+  ///
+  /// The same call that automatic backups use, so the manual copy lands in the
+  /// on-device rotation as well — the share sheet is what gets a copy *off* the
+  /// device, which is the part that survives losing the phone.
+  Future<void> _backUpNow() async {
+    final service = ref.read(backupServiceProvider);
+    if (service == null || _isWorking) return;
+
+    setState(() => _isWorking = true);
+    try {
+      final file = await service.writeSnapshot();
+      if (!mounted) return;
+
+      ref.invalidate(backupStatusProvider);
+
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          subject: 'eco backup',
+          text: 'Encrypted eco backup. Restoring it needs your recovery phrase.',
+        ),
+      );
+    } catch (error) {
+      _report('Backup failed: ${describeSyncError(error)}');
+    } finally {
+      if (mounted) setState(() => _isWorking = false);
+    }
+  }
+
+  Future<void> _restore() async {
+    final service = ref.read(backupServiceProvider);
+    if (service == null || _isWorking) return;
+
+    final picked = await FilePicker.platform.pickFiles(withData: true);
+    final bytes = picked?.files.singleOrNull?.bytes;
+    if (bytes == null || !mounted) return;
+
+    setState(() => _isWorking = true);
+    try {
+      // Decode before asking: a confirmation that names real numbers is worth
+      // more than one that asks the user to trust an unopened file.
+      final payload = await service.read(bytes);
+      if (!mounted) return;
+
+      final confirmed = await _confirmRestore(payload);
+      if (!confirmed || !mounted) return;
+
+      await service.restore(payload);
+      if (!mounted) return;
+
+      ref.invalidate(backupStatusProvider);
+      await syncNow(ref);
+      if (!mounted) return;
+
+      _report('Restored ${payload.recordCount} records. Uploading them now.');
+    } catch (error) {
+      _report('Could not restore: ${describeSyncError(error)}');
+    } finally {
+      if (mounted) setState(() => _isWorking = false);
+    }
+  }
+
+  Future<bool> _confirmRestore(BackupPayload payload) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Restore this backup?'),
+        content: Text(
+          'Taken ${_formatTimestamp(payload.createdAt)}.\n\n'
+          '${payload.transactions.length} transactions, '
+          '${payload.categories.length} categories, '
+          '${payload.recurring.length} recurring templates.\n\n'
+          'This replaces everything on this device and re-uploads it as new '
+          'records. Use it when the server data is gone — against a server that '
+          'still has your data it will create duplicates.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Replace and upload'),
+          ),
+        ],
+      ),
+    );
+
+    return confirmed ?? false;
+  }
+
+  void _report(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 4)),
+      );
+  }
+
+  static String _formatTimestamp(DateTime value) =>
+      DateFormat('d MMM y, HH:mm').format(value);
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final hasKey = ref.watch(dataKeyProvider) != null;
+    final status = ref.watch(backupStatusProvider).valueOrNull;
+
+    // Backups are written with the data key, so there is nothing to offer
+    // before encryption is set up.
+    if (!hasKey) {
+      return _SectionCard(
+        title: 'Backup',
+        children: [
+          _SettingsActionTile(
+            icon: Icons.lock_outline,
+            title: 'Set up encryption first',
+            subtitle:
+                'Backups are encrypted with your data key. Set one up to turn '
+                'backups on.',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EncryptionSetupPage()),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final newest = status?.newest;
+    final detail = newest == null
+        ? 'No backup yet. One is written automatically when you open the app.'
+        : 'Last backup ${_formatTimestamp(newest)} · '
+              '${status!.count} kept on this device';
+
+    return _SectionCard(
+      title: 'Backup',
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.50),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                newest == null ? Icons.cloud_off_outlined : Icons.verified_outlined,
+                color: newest == null ? scheme.onSurfaceVariant : scheme.primary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  detail,
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        _SettingsActionTile(
+          icon: Icons.ios_share_outlined,
+          title: _isWorking ? 'Working…' : 'Back up now',
+          subtitle: 'Save an encrypted copy and share it off this device',
+          onTap: _isWorking ? () {} : _backUpNow,
+        ),
+        const SizedBox(height: 10),
+        _SettingsActionTile(
+          icon: Icons.restore_outlined,
+          title: 'Restore from file',
+          subtitle: 'Replace local data with a backup and re-upload it',
+          onTap: _isWorking ? () {} : _restore,
+        ),
+      ],
+    );
+  }
+}
+
 class _SyncSection extends ConsumerStatefulWidget {
   const _SyncSection();
 

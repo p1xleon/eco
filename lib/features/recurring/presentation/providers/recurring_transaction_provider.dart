@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/auth/auth_provider.dart';
+import '../../../../core/crypto/crypto_providers.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../data/models/recurring_transaction_model.dart';
 import '../../data/repositories/recurring_transaction_repository.dart';
@@ -17,6 +18,7 @@ final recurringTransactionRepositoryProvider =
       return RecurringTransactionRepository(
         remote: remote,
         categoryRepository: categoryRepository,
+        cipher: ref.watch(fieldCipherProvider),
       );
     });
 

@@ -1,5 +1,6 @@
 import 'package:isar_community/isar.dart';
 
+import '../../../../core/crypto/field_cipher.dart';
 import '../../../../core/database/isar_service.dart';
 import '../../../../core/network/network_monitor.dart';
 import '../../../../core/network/remote_call.dart';
@@ -27,7 +28,16 @@ class TransactionRepository {
   final Isar _isar = IsarService.isar;
   final SyncGate _gate = SyncGate();
 
-  TransactionRepository(this.remote, {required this.categoryRepository});
+  /// Encrypts what leaves the device and decrypts what comes back. Null until
+  /// the user sets up a key, in which case rows move in plaintext exactly as
+  /// they did before — see [TransactionMapper.toJson].
+  final FieldCipher? cipher;
+
+  TransactionRepository(
+    this.remote, {
+    required this.categoryRepository,
+    this.cipher,
+  });
 
   /// Whether replication is worth attempting. Checking the network here is what
   /// keeps offline reads from paying an HTTP timeout.
@@ -336,6 +346,7 @@ class TransactionRepository {
           json,
           categoryId:
               categoryIdsByRemoteId[json[transactionCategoryRemoteIdColumn]],
+          cipher: cipher,
         ),
     ];
 
@@ -444,7 +455,11 @@ class TransactionRepository {
   ) async {
     final category = await _isar.categoryModels.get(tx.categoryId);
 
-    return tx.toJson(userId, categoryRemoteId: category?.remoteId);
+    return tx.toJson(
+      userId,
+      categoryRemoteId: category?.remoteId,
+      cipher: cipher,
+    );
   }
 
   /// Parses a row the server just echoed back. The category is already known
@@ -453,7 +468,11 @@ class TransactionRepository {
     Map<String, dynamic> json, {
     required TransactionModel fallback,
   }) {
-    return TransactionMapper.fromJson(json, categoryId: fallback.categoryId);
+    return TransactionMapper.fromJson(
+      json,
+      categoryId: fallback.categoryId,
+      cipher: cipher,
+    );
   }
 
   Future<List<TransactionModel>> fetchRemoteTransactions() async {
@@ -469,6 +488,7 @@ class TransactionRepository {
         categoryId: categoryRemoteId == null
             ? null
             : categoryIdsByRemoteId[categoryRemoteId],
+        cipher: cipher,
       );
     }).toList();
   }

@@ -280,7 +280,7 @@ class _AnalyticsHeroCard extends StatelessWidget {
             accent.withValues(alpha: 0.08),
             scheme.surfaceContainerHighest.withValues(alpha: 0.92),
           ],
-          begin: Alignment.topLeft,
+          begin: Alignment.topCenter,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),

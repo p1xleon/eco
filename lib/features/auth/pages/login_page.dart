@@ -66,7 +66,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               scheme.surface,
               scheme.secondaryContainer.withValues(alpha: 0.30),
             ],
-            begin: Alignment.topLeft,
+            begin: Alignment.topCenter,
             end: Alignment.bottomRight,
             stops: const [0, 0.55, 1],
           ),

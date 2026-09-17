@@ -1,5 +1,6 @@
 import 'package:isar_community/isar.dart';
 
+import '../../../../core/crypto/field_cipher.dart';
 import '../../../../core/database/isar_service.dart';
 import '../../../../core/network/network_monitor.dart';
 import '../../../../core/network/remote_call.dart';
@@ -19,9 +20,14 @@ class RecurringTransactionRepository {
   final Isar _isar = IsarService.isar;
   final SyncGate _gate = SyncGate();
 
+  /// Encrypts what leaves the device. Null until the user sets up a key —
+  /// see [RecurringTransactionMapper.toJson].
+  final FieldCipher? cipher;
+
   RecurringTransactionRepository({
     required this.remote,
     required this.categoryRepository,
+    this.cipher,
   });
 
   bool get _canSync =>
@@ -424,7 +430,11 @@ class RecurringTransactionRepository {
     final category = await _isar.categoryModels.get(template.categoryId);
     final categoryRemoteId = category?.remoteId;
 
-    return template.toJson(userId, categoryRemoteId: categoryRemoteId);
+    return template.toJson(
+      userId,
+      categoryRemoteId: categoryRemoteId,
+      cipher: cipher,
+    );
   }
 
   Future<RecurringTransactionModel?> _fromRemoteJson(
@@ -439,7 +449,11 @@ class RecurringTransactionRepository {
       return null;
     }
 
-    return RecurringTransactionMapper.fromJson(json, categoryId: categoryId);
+    return RecurringTransactionMapper.fromJson(
+      json,
+      categoryId: categoryId,
+      cipher: cipher,
+    );
   }
 
   Future<int?> _resolveLocalCategoryId({

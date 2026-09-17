@@ -7,6 +7,7 @@ import '../../features/auth/pages/login_page.dart';
 import '../../features/recurring/presentation/providers/recurring_transaction_provider.dart';
 import '../../features/transactions/presentation/providers/transaction_provider.dart';
 import '../../shared/widgets/app_shell.dart';
+import '../backup/backup_providers.dart';
 import '../network/network_monitor.dart';
 import '../sync/sync_providers.dart';
 import 'auth_provider.dart';
@@ -61,6 +62,11 @@ class _AuthenticatedAppShellState
       unawaited(_guarded(() => syncNow(ref)));
     });
 
+    // Opening the app is the first of the two moments a backup can run: there
+    // is no background scheduler, so backups ride the lifecycle. The schedule
+    // throttles to once a day and swallows its own failures.
+    unawaited(_backUpIfDue());
+
     // Returning to the app is the other natural moment to catch up. This goes
     // through the plain refresh rather than [syncNow] so the per-collection
     // recency window still applies and a resume right after a reconnect does
@@ -75,8 +81,22 @@ class _AuthenticatedAppShellState
             await refreshRecurringTransactions(ref);
           }),
         );
+
+        unawaited(_backUpIfDue());
       },
     );
+  }
+
+  /// Runs the daily automatic backup, if one is due and encryption is set up.
+  ///
+  /// Null before the user has a key: backups are encrypted with it, so there is
+  /// nothing to write yet. The setup gate is what resolves that, not a silent
+  /// plaintext fallback.
+  Future<void> _backUpIfDue() async {
+    final schedule = ref.read(backupScheduleProvider);
+    if (schedule == null || !mounted) return;
+
+    await schedule.runIfDue();
   }
 
   Future<void> _guarded(Future<void> Function() action) async {
