@@ -41,7 +41,12 @@ macos/
 linux/
 web/
 windows/
-supabase/
+
+# Not supabase/ as a whole: the migrations in supabase/migrations are the only
+# written record of the schema. Ignoring them is what left the database
+# unreconstructable when the project was deleted on 2026-09-17.
+supabase/.temp/
+supabase/.branches/
 # Symbolication related
 app.*.symbols
 
