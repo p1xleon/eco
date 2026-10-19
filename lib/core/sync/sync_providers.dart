@@ -47,7 +47,9 @@ final syncFailuresProvider = FutureProvider<List<SyncFailure>>((ref) async {
   final transactions = await ref
       .read(transactionRepositoryProvider)
       .blockedRecords();
-  final categories = await ref.read(categoryRepositoryProvider).blockedRecords();
+  final categories = await ref
+      .read(categoryRepositoryProvider)
+      .blockedRecords();
   final templates = await ref
       .read(recurringTransactionRepositoryProvider)
       .blockedRecords();

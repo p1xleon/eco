@@ -34,6 +34,12 @@ final filteredTransactionsProvider =
       final transactionsAsync = ref.watch(visibleTransactionsProvider);
       final filter = ref.watch(transactionFilterProvider);
 
+      // Search and filters match real text and amounts; while masked they would
+      // let someone probe the hidden values, so masked shows everything.
+      if (ref.watch(transactionVisibilityProvider).isMasked) {
+        return transactionsAsync;
+      }
+
       return transactionsAsync.whenData((transactions) {
         return transactions.where((tx) {
           if (filter.search.isNotEmpty) {

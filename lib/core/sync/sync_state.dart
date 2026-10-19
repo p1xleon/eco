@@ -47,4 +47,3 @@ String describeSyncError(Object error) {
 
   return '${text.substring(0, 199)}…';
 }
-

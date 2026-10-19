@@ -17,7 +17,7 @@ import 'recovery_phrase.dart';
 /// (AES-GCM under an RSA-wrapped key), so no extra configuration is needed.
 class DataKeyStore {
   DataKeyStore({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   static const _storageKey = 'eco.data_key.v1';
   static const keyLengthBytes = 32;

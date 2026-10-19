@@ -43,9 +43,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_messageForError(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_messageForError(e))));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -144,7 +144,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               onFieldSubmitted: (_) => _submit(),
                               decoration: InputDecoration(
                                 labelText: 'Password',
-                                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                                prefixIcon: const Icon(
+                                  Icons.lock_outline_rounded,
+                                ),
                                 suffixIcon: IconButton(
                                   onPressed: () {
                                     setState(() {
@@ -217,9 +219,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHighest.withValues(
-                                  alpha: 0.42,
-                                ),
+                                color: scheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.42),
                                 borderRadius: BorderRadius.circular(18),
                               ),
                               child: Row(
@@ -312,10 +313,7 @@ class _HeroPanel extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             'Clean records, synced data, and quick transaction capture in one place.',
-            style: TextStyle(
-              color: scheme.onSurfaceVariant,
-              height: 1.45,
-            ),
+            style: TextStyle(color: scheme.onSurfaceVariant, height: 1.45),
           ),
         ],
       ),

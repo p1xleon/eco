@@ -19,9 +19,7 @@ class AppTheme {
     final onNeutralVariant = isDark
         ? const Color(0xFFB8C0CC)
         : const Color(0xFF5E6875);
-    final outline = isDark
-        ? const Color(0xFF39424D)
-        : const Color(0xFFD6DBE1);
+    final outline = isDark ? const Color(0xFF39424D) : const Color(0xFFD6DBE1);
     final outlineVariant = isDark
         ? const Color(0xFF2A313A)
         : const Color(0xFFE6E9ED);
@@ -122,7 +120,9 @@ class AppTheme {
       onSurfaceVariant: onNeutralVariant,
       outline: outline,
       outlineVariant: outlineVariant,
-      inverseSurface: isDark ? const Color(0xFFF3F5F7) : const Color(0xFF1C2128),
+      inverseSurface: isDark
+          ? const Color(0xFFF3F5F7)
+          : const Color(0xFF1C2128),
       onInverseSurface: isDark
           ? const Color(0xFF171B20)
           : const Color(0xFFF5F7FA),

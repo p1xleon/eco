@@ -116,7 +116,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
       ),
       body: Column(
         children: [
-          if (!_isRecurringTab)
+          if (!_isRecurringTab && !visibility.isMasked)
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(

@@ -58,9 +58,9 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_messageForError(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_messageForError(e))));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -175,7 +175,9 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
                               textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
                                 labelText: 'Password',
-                                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                                prefixIcon: const Icon(
+                                  Icons.lock_outline_rounded,
+                                ),
                                 suffixIcon: IconButton(
                                   onPressed: () {
                                     setState(() {
@@ -207,7 +209,9 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
                               onFieldSubmitted: (_) => _submit(),
                               decoration: InputDecoration(
                                 labelText: 'Confirm Password',
-                                prefixIcon: const Icon(Icons.verified_user_outlined),
+                                prefixIcon: const Icon(
+                                  Icons.verified_user_outlined,
+                                ),
                                 suffixIcon: IconButton(
                                   onPressed: () {
                                     setState(() {
@@ -338,10 +342,7 @@ class _SignUpHero extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             'Create your profile once, then keep transactions and preferences in sync.',
-            style: TextStyle(
-              color: scheme.onSurfaceVariant,
-              height: 1.45,
-            ),
+            style: TextStyle(color: scheme.onSurfaceVariant, height: 1.45),
           ),
         ],
       ),

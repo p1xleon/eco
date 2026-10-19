@@ -22,11 +22,14 @@ extension RecurringTransactionMapper on RecurringTransactionModel {
       'title': cipher == null ? title : cipher.encrypt(title),
       'type': type.name,
       'default_amount': cipher == null ? defaultAmount : null,
-      recurringDefaultAmountEncryptedColumn:
-          cipher?.encryptNumber(defaultAmount),
+      recurringDefaultAmountEncryptedColumn: cipher?.encryptNumber(
+        defaultAmount,
+      ),
       'amount_type': amountType.name,
       'category_id': categoryRemoteId,
-      'account_id': cipher == null ? accountId : cipher.encryptNullable(accountId),
+      'account_id': cipher == null
+          ? accountId
+          : cipher.encryptNullable(accountId),
       'interval_type': intervalType.name,
       'interval_count': intervalCount,
       'next_due_date': nextDueDate.toUtc().toIso8601String(),

@@ -122,8 +122,10 @@ class _EncryptionSetupPageState extends ConsumerState<EncryptionSetupPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(
-          content: Text('Copied. Move it somewhere you will still have it if '
-              'this phone is lost.'),
+          content: Text(
+            'Copied. Move it somewhere you will still have it if '
+            'this phone is lost.',
+          ),
         ),
       );
   }
@@ -141,7 +143,8 @@ class _EncryptionSetupPageState extends ConsumerState<EncryptionSetupPage> {
             _PhraseCard(
               phrase: _newPhrase!,
               title: 'Write this down now',
-              body: 'This phrase is your key. Without it, a backup or a new '
+              body:
+                  'This phrase is your key. Without it, a backup or a new '
                   'phone cannot read your data — and nobody can reset it for '
                   'you.',
               onCopy: () => _copy(_newPhrase!),
@@ -150,7 +153,8 @@ class _EncryptionSetupPageState extends ConsumerState<EncryptionSetupPage> {
             _PhraseCard(
               phrase: existingPhrase,
               title: 'Your recovery phrase',
-              body: 'Encryption is on. Keep this phrase somewhere safe and '
+              body:
+                  'Encryption is on. Keep this phrase somewhere safe and '
                   'away from this phone.',
               onCopy: () => _copy(existingPhrase),
             )
@@ -184,10 +188,7 @@ class _EncryptionSetupPageState extends ConsumerState<EncryptionSetupPage> {
 
   List<Widget> _setupChildren() {
     return [
-      Text(
-        'Turn on encryption',
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
+      Text('Turn on encryption', style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 8),
       const Text(
         'Your transactions are encrypted on this device before they are '

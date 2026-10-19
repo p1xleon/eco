@@ -72,7 +72,9 @@ class ImportSession {
       drafts: drafts ?? this.drafts,
       stats: stats ?? this.stats,
       isLoading: isLoading ?? this.isLoading,
-      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      errorMessage: clearErrorMessage
+          ? null
+          : (errorMessage ?? this.errorMessage),
     );
   }
 }

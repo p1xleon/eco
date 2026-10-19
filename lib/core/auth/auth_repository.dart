@@ -17,9 +17,7 @@ class AuthRepository {
     await client.auth.signUp(
       email: email,
       password: password,
-      data: {
-        'full_name': displayName,
-      },
+      data: {'full_name': displayName},
     );
   }
 

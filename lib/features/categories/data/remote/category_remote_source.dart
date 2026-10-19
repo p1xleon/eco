@@ -26,7 +26,8 @@ class CategoryRemoteSource {
 
   Future<Map<String, dynamic>> addCategory(Map<String, dynamic> data) {
     return remoteCall(
-      () async => await client.from('categories').insert(data).select().single(),
+      () async =>
+          await client.from('categories').insert(data).select().single(),
     );
   }
 

@@ -55,7 +55,10 @@ class RecoveryPhrase {
     for (final character in normalized.split('')) {
       final index = _alphabet.indexOf(character);
       if (index < 0) {
-        throw FormatException('Not a valid recovery phrase character', character);
+        throw FormatException(
+          'Not a valid recovery phrase character',
+          character,
+        );
       }
 
       value = (value << 5) | index;
@@ -75,7 +78,10 @@ class RecoveryPhrase {
 
     for (var i = 0; i < raw.length; i += _groupSize) {
       groups.add(
-        raw.substring(i, i + _groupSize > raw.length ? raw.length : i + _groupSize),
+        raw.substring(
+          i,
+          i + _groupSize > raw.length ? raw.length : i + _groupSize,
+        ),
       );
     }
 

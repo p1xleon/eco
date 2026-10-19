@@ -75,25 +75,25 @@ class BackupCodec {
   }
 
   Map<String, dynamic> _transactionToJson(TransactionModel item) => {
-        'id': item.id,
-        'remote_id': item.remoteId,
-        'title': item.title,
-        'amount': item.amount,
-        'date': item.date.toIso8601String(),
-        'type': item.type.name,
-        'status': item.status.name,
-        'category_id': item.categoryId,
-        'payment_method': item.paymentMethod,
-        'payee': item.payee,
-        'note': item.note,
-        'created_at': item.createdAt.toIso8601String(),
-        'updated_at': item.updatedAt?.toIso8601String(),
-        'recurring_id': item.recurringId,
-        'recurring_template_id': item.recurringTemplateId,
-        'is_recurring_instance': item.isRecurringInstance,
-        'sync_state': item.syncState.name,
-        'local_updated_at': item.localUpdatedAt?.toIso8601String(),
-      };
+    'id': item.id,
+    'remote_id': item.remoteId,
+    'title': item.title,
+    'amount': item.amount,
+    'date': item.date.toIso8601String(),
+    'type': item.type.name,
+    'status': item.status.name,
+    'category_id': item.categoryId,
+    'payment_method': item.paymentMethod,
+    'payee': item.payee,
+    'note': item.note,
+    'created_at': item.createdAt.toIso8601String(),
+    'updated_at': item.updatedAt?.toIso8601String(),
+    'recurring_id': item.recurringId,
+    'recurring_template_id': item.recurringTemplateId,
+    'is_recurring_instance': item.isRecurringInstance,
+    'sync_state': item.syncState.name,
+    'local_updated_at': item.localUpdatedAt?.toIso8601String(),
+  };
 
   TransactionModel _transactionFromJson(Map<String, dynamic> json) {
     return TransactionModel()
@@ -118,15 +118,15 @@ class BackupCodec {
   }
 
   Map<String, dynamic> _categoryToJson(CategoryModel item) => {
-        'id': item.id,
-        'remote_id': item.remoteId,
-        'name': item.name,
-        'type': item.type.name,
-        'color': item.color,
-        'icon': item.icon,
-        'sync_state': item.syncState.name,
-        'local_updated_at': item.localUpdatedAt?.toIso8601String(),
-      };
+    'id': item.id,
+    'remote_id': item.remoteId,
+    'name': item.name,
+    'type': item.type.name,
+    'color': item.color,
+    'icon': item.icon,
+    'sync_state': item.syncState.name,
+    'local_updated_at': item.localUpdatedAt?.toIso8601String(),
+  };
 
   CategoryModel _categoryFromJson(Map<String, dynamic> json) {
     return CategoryModel()
@@ -141,25 +141,25 @@ class BackupCodec {
   }
 
   Map<String, dynamic> _recurringToJson(RecurringTransactionModel item) => {
-        'id': item.id,
-        'remote_id': item.remoteId,
-        'title': item.title,
-        'type': item.type.name,
-        'default_amount': item.defaultAmount,
-        'amount_type': item.amountType.name,
-        'category_id': item.categoryId,
-        'account_id': item.accountId,
-        'interval_type': item.intervalType.name,
-        'interval_count': item.intervalCount,
-        'next_due_date': item.nextDueDate.toIso8601String(),
-        'end_date': item.endDate?.toIso8601String(),
-        'is_active': item.isActive,
-        'note': item.note,
-        'created_at': item.createdAt.toIso8601String(),
-        'updated_at': item.updatedAt?.toIso8601String(),
-        'sync_state': item.syncState.name,
-        'local_updated_at': item.localUpdatedAt?.toIso8601String(),
-      };
+    'id': item.id,
+    'remote_id': item.remoteId,
+    'title': item.title,
+    'type': item.type.name,
+    'default_amount': item.defaultAmount,
+    'amount_type': item.amountType.name,
+    'category_id': item.categoryId,
+    'account_id': item.accountId,
+    'interval_type': item.intervalType.name,
+    'interval_count': item.intervalCount,
+    'next_due_date': item.nextDueDate.toIso8601String(),
+    'end_date': item.endDate?.toIso8601String(),
+    'is_active': item.isActive,
+    'note': item.note,
+    'created_at': item.createdAt.toIso8601String(),
+    'updated_at': item.updatedAt?.toIso8601String(),
+    'sync_state': item.syncState.name,
+    'local_updated_at': item.localUpdatedAt?.toIso8601String(),
+  };
 
   RecurringTransactionModel _recurringFromJson(Map<String, dynamic> json) {
     return RecurringTransactionModel()
@@ -168,11 +168,16 @@ class BackupCodec {
       ..title = json['title'] as String
       ..type = _enumByName(TransactionType.values, json['type'])
       ..defaultAmount = (json['default_amount'] as num?)?.toDouble()
-      ..amountType = _enumByName(RecurringAmountType.values, json['amount_type'])
+      ..amountType = _enumByName(
+        RecurringAmountType.values,
+        json['amount_type'],
+      )
       ..categoryId = (json['category_id'] as num).toInt()
       ..accountId = json['account_id'] as String?
-      ..intervalType =
-          _enumByName(RecurringIntervalType.values, json['interval_type'])
+      ..intervalType = _enumByName(
+        RecurringIntervalType.values,
+        json['interval_type'],
+      )
       ..intervalCount = (json['interval_count'] as num).toInt()
       ..nextDueDate = DateTime.parse(json['next_due_date'] as String)
       ..endDate = _dateOrNull(json['end_date'])
@@ -185,10 +190,10 @@ class BackupCodec {
   }
 
   Map<String, dynamic> _presetToJson(TransactionPresetModel item) => {
-        'id': item.id,
-        'type': item.type.name,
-        'value': item.value,
-      };
+    'id': item.id,
+    'type': item.type.name,
+    'value': item.value,
+  };
 
   TransactionPresetModel _presetFromJson(Map<String, dynamic> json) {
     return TransactionPresetModel()
@@ -205,7 +210,8 @@ class BackupCodec {
   static T _enumByName<T extends Enum>(List<T> values, Object? name) {
     return values.firstWhere(
       (value) => value.name == name,
-      orElse: () => throw FormatException('Unknown value for ${T.toString()}: $name'),
+      orElse: () =>
+          throw FormatException('Unknown value for ${T.toString()}: $name'),
     );
   }
 }
@@ -227,5 +233,8 @@ class BackupPayload {
   final List<TransactionPresetModel> presets;
 
   int get recordCount =>
-      transactions.length + categories.length + recurring.length + presets.length;
+      transactions.length +
+      categories.length +
+      recurring.length +
+      presets.length;
 }

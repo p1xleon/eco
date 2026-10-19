@@ -26,9 +26,11 @@ class TransactionVisibilityState {
       return true;
     }
 
-    return !hiddenTransactionKeys.contains(
-      transactionVisibilityKey(transaction),
-    );
+    // Any key matches: a row hidden as `local:5` gets a `remote:` key on its
+    // first sync, and must stay hidden.
+    return !transactionVisibilityKeys(
+      transaction,
+    ).any(hiddenTransactionKeys.contains);
   }
 
   List<TransactionModel> applyToTransactions(
@@ -173,7 +175,7 @@ class TransactionVisibilityNotifier
           ? DateTime.now().toUtc()
           : null,
       hiddenTransactionKeys: mode == TransactionVisibilityMode.invisible
-          ? existingTransactions.map(transactionVisibilityKey).toSet()
+          ? existingTransactions.expand(transactionVisibilityKeys).toSet()
           : const <String>{},
       hiddenRecurringTemplateKeys: recurringKeys,
     );
@@ -186,7 +188,7 @@ class TransactionVisibilityNotifier
     }
 
     final nextHidden = Set<String>.from(state.hiddenTransactionKeys)
-      ..remove(transactionVisibilityKey(transaction));
+      ..removeAll(transactionVisibilityKeys(transaction));
     state = TransactionVisibilityState(
       mode: state.mode,
       invisibleSince: state.invisibleSince,
@@ -223,13 +225,14 @@ final transactionVisibilityProvider =
       return TransactionVisibilityNotifier();
     });
 
-String transactionVisibilityKey(TransactionModel transaction) {
+Set<String> transactionVisibilityKeys(TransactionModel transaction) {
+  final keys = <String>{'local:${transaction.id}'};
   final remoteId = transaction.remoteId?.trim();
   if (remoteId != null && remoteId.isNotEmpty) {
-    return 'remote:$remoteId';
+    keys.add('remote:$remoteId');
   }
 
-  return 'local:${transaction.id}';
+  return keys;
 }
 
 Set<String> recurringTemplateVisibilityKeys(

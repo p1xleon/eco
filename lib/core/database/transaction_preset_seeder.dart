@@ -20,7 +20,10 @@ class TransactionPresetSeeder {
 
   static Future<void> ensureDefaults() async {
     final isar = IsarService.isar;
-    final existing = await isar.transactionPresetModels.where().anyId().findAll();
+    final existing = await isar.transactionPresetModels
+        .where()
+        .anyId()
+        .findAll();
 
     final existingKeys = existing
         .map((preset) => '${preset.type.name}:${preset.value.toLowerCase()}')

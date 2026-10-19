@@ -47,9 +47,9 @@ class SyncStatusBanner extends ConsumerWidget {
               Flexible(
                 child: Text(
                   _message(isOnline: isOnline, pending: pending),
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: foreground,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelMedium?.copyWith(color: foreground),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

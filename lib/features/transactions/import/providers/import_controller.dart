@@ -163,7 +163,9 @@ class ImportController extends StateNotifier<ImportSession> {
         : state.drafts.where((draft) => draft.isValid).toList(growable: false);
 
     if (!skipInvalidDrafts && state.invalidDrafts.isNotEmpty) {
-      throw StateError('Fix or skip invalid rows before confirming the import.');
+      throw StateError(
+        'Fix or skip invalid rows before confirming the import.',
+      );
     }
 
     if (draftsToCommit.isEmpty) {
@@ -173,7 +175,9 @@ class ImportController extends StateNotifier<ImportSession> {
     state = state.copyWith(isLoading: true, clearErrorMessage: true);
 
     try {
-      final categoriesById = {for (final category in categories) category.id: category};
+      final categoriesById = {
+        for (final category in categories) category.id: category,
+      };
       final transactions = draftsToCommit
           .map((draft) => _toTransactionModel(draft, categoriesById))
           .toList(growable: false);

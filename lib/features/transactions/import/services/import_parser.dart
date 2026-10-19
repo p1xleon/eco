@@ -38,7 +38,9 @@ List<Map<String, String>> parseCsvRows(List<int> bytes) {
     final mapped = <String, String>{};
     var hasValue = false;
     for (var index = 0; index < headers.length; index++) {
-      final value = index < normalizedRow.length ? normalizedRow[index].trim() : '';
+      final value = index < normalizedRow.length
+          ? normalizedRow[index].trim()
+          : '';
       mapped[headers[index]] = value;
       hasValue = hasValue || value.isNotEmpty;
     }
@@ -95,10 +97,7 @@ ImportTransactionDraft enrichDraftWithCategories(
       : _cleanText(draft.raw[categoryHeader]);
   final resolvedCategoryId = rawCategory == null
       ? draft.categoryId
-      : _matchCategoryId(
-          value: rawCategory,
-          categories: categories,
-        );
+      : _matchCategoryId(value: rawCategory, categories: categories);
 
   final category = resolvedCategoryId == null
       ? null
@@ -215,7 +214,11 @@ ImportTransactionDraft _parseRow({
     categoryId: null,
     payee: _readMappedValue(row, columnMapping, FieldType.payee),
     note: _readMappedValue(row, columnMapping, FieldType.note),
-    paymentMethod: _readMappedValue(row, columnMapping, FieldType.paymentMethod),
+    paymentMethod: _readMappedValue(
+      row,
+      columnMapping,
+      FieldType.paymentMethod,
+    ),
     recurringTemplateId: null,
     errors: const [],
     isValid: true,
@@ -335,7 +338,9 @@ List<String> _normalizeRowLength({
   required int expectedLength,
   required int? dateIndex,
 }) {
-  if (row.length <= expectedLength || dateIndex == null || dateIndex >= row.length) {
+  if (row.length <= expectedLength ||
+      dateIndex == null ||
+      dateIndex >= row.length) {
     return row;
   }
 

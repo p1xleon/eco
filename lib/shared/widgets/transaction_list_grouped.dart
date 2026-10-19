@@ -112,6 +112,7 @@ class _TransactionListGroupedState
               _SelectionSummaryBar(
                 count: _selectedTransactionIds.length,
                 total: selectedTotal,
+                visibility: visibility,
                 onDone: _exitSelectionMode,
               ),
             Expanded(
@@ -330,11 +331,13 @@ class _TransactionTile extends ConsumerWidget {
 class _SelectionSummaryBar extends StatelessWidget {
   final int count;
   final double total;
+  final TransactionVisibilityState visibility;
   final VoidCallback onDone;
 
   const _SelectionSummaryBar({
     required this.count,
     required this.total,
+    required this.visibility,
     required this.onDone,
   });
 
@@ -342,8 +345,10 @@ class _SelectionSummaryBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final sign = total >= 0 ? '+' : '−';
-    final amountLabel =
-        '$sign ₹${_TransactionListGroupedState._amountFormat.format(total.abs())}';
+    // The sign alone would tell income from expense, so masked hides the whole label.
+    final amountLabel = visibility.displayAmount(
+      '$sign ₹${_TransactionListGroupedState._amountFormat.format(total.abs())}',
+    );
     final countLabel = '$count selected';
 
     return Container(

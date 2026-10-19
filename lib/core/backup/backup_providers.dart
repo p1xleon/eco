@@ -12,10 +12,7 @@ final backupServiceProvider = Provider<BackupService?>((ref) {
   final cipher = ref.watch(fieldCipherProvider);
   if (cipher == null) return null;
 
-  return BackupService(
-    isar: IsarService.isar,
-    codec: BackupCodec(cipher),
-  );
+  return BackupService(isar: IsarService.isar, codec: BackupCodec(cipher));
 });
 
 /// Kept alive for the life of the app so its in-flight guard actually guards

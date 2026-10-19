@@ -13,8 +13,9 @@ final paymentMethodPresetsProvider =
       return repo.getByType(TransactionPresetType.paymentMethod);
     });
 
-final payeePresetsProvider =
-    FutureProvider<List<TransactionPresetModel>>((ref) async {
-      final repo = ref.read(transactionPresetRepositoryProvider);
-      return repo.getByType(TransactionPresetType.payee);
-    });
+final payeePresetsProvider = FutureProvider<List<TransactionPresetModel>>((
+  ref,
+) async {
+  final repo = ref.read(transactionPresetRepositoryProvider);
+  return repo.getByType(TransactionPresetType.payee);
+});

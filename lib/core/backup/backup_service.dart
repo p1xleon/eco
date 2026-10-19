@@ -20,8 +20,8 @@ import 'backup_codec.dart';
 /// backup goes through the share sheet instead.
 class BackupService {
   BackupService({required Isar isar, required BackupCodec codec})
-      : _isar = isar,
-        _codec = codec;
+    : _isar = isar,
+      _codec = codec;
 
   static const fileExtension = '.ecobak';
   static const directoryName = 'backups';

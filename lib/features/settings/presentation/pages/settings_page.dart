@@ -564,7 +564,8 @@ class _BackupSectionState extends ConsumerState<_BackupSection> {
         ShareParams(
           files: [XFile(file.path)],
           subject: 'eco backup',
-          text: 'Encrypted eco backup. Restoring it needs your recovery phrase.',
+          text:
+              'Encrypted eco backup. Restoring it needs your recovery phrase.',
         ),
       );
     } catch (error) {
@@ -695,8 +696,12 @@ class _BackupSectionState extends ConsumerState<_BackupSection> {
           child: Row(
             children: [
               Icon(
-                newest == null ? Icons.cloud_off_outlined : Icons.verified_outlined,
-                color: newest == null ? scheme.onSurfaceVariant : scheme.primary,
+                newest == null
+                    ? Icons.cloud_off_outlined
+                    : Icons.verified_outlined,
+                color: newest == null
+                    ? scheme.onSurfaceVariant
+                    : scheme.primary,
               ),
               const SizedBox(width: 12),
               Expanded(

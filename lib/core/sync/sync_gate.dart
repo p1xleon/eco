@@ -28,11 +28,13 @@ class SyncGate {
 
     // Only a pass that actually succeeded means the local cache is fresh, so a
     // failed one must not suppress the next attempt.
-    final future = action().then((_) {
-      _completedAt = DateTime.now();
-    }).whenComplete(() {
-      _inFlight = null;
-    });
+    final future = action()
+        .then((_) {
+          _completedAt = DateTime.now();
+        })
+        .whenComplete(() {
+          _inFlight = null;
+        });
 
     _inFlight = future;
     return future;

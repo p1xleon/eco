@@ -29,7 +29,8 @@ class ImportTransactionsPage extends ConsumerStatefulWidget {
       _ImportTransactionsPageState();
 }
 
-class _ImportTransactionsPageState extends ConsumerState<ImportTransactionsPage> {
+class _ImportTransactionsPageState
+    extends ConsumerState<ImportTransactionsPage> {
   bool _skipInvalidDrafts = true;
   final ScrollController _previewScrollController = ScrollController();
 
@@ -97,7 +98,12 @@ class _ImportTransactionsPageState extends ConsumerState<ImportTransactionsPage>
                                 duration: const Duration(milliseconds: 180),
                                 child: Padding(
                                   key: ValueKey(session.step),
-                                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    12,
+                                    16,
+                                    0,
+                                  ),
                                   child: _buildStepBody(
                                     context: context,
                                     session: session,
@@ -126,7 +132,8 @@ class _ImportTransactionsPageState extends ConsumerState<ImportTransactionsPage>
                         ),
                       );
                     },
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (error, _) => Center(child: Text(error.toString())),
                   );
                 },
@@ -165,10 +172,7 @@ class _ImportTransactionsPageState extends ConsumerState<ImportTransactionsPage>
     return switch (session.step) {
       ImportStep.upload => ListView(
         children: [
-          if (messageCard != null) ...[
-            messageCard,
-            const SizedBox(height: 12),
-          ],
+          if (messageCard != null) ...[messageCard, const SizedBox(height: 12)],
           _UploadStep(
             session: session,
             onPickFile: () => _pickFile(categories),
@@ -177,14 +181,13 @@ class _ImportTransactionsPageState extends ConsumerState<ImportTransactionsPage>
       ),
       ImportStep.mapping => ListView(
         children: [
-          if (messageCard != null) ...[
-            messageCard,
-            const SizedBox(height: 12),
-          ],
+          if (messageCard != null) ...[messageCard, const SizedBox(height: 12)],
           _MappingStep(
             session: session,
             onChanged: (fieldType, value) {
-              ref.read(importControllerProvider.notifier).updateMapping(
+              ref
+                  .read(importControllerProvider.notifier)
+                  .updateMapping(
                     fieldType: fieldType,
                     columnName: value,
                     categories: categories,
@@ -210,13 +213,15 @@ class _ImportTransactionsPageState extends ConsumerState<ImportTransactionsPage>
               .toggleDraftSelection(draftId, isSelected);
         },
         onToggleSelectAll: (isSelected) {
-          ref.read(importControllerProvider.notifier).toggleSelectAll(
-                isSelected,
-              );
+          ref
+              .read(importControllerProvider.notifier)
+              .toggleSelectAll(isSelected);
         },
         onApplyCategory: () => _applyCategoryToSelected(categories),
         onApplyType: (type) {
-          ref.read(importControllerProvider.notifier).applyToSelected(type: type);
+          ref
+              .read(importControllerProvider.notifier)
+              .applyToSelected(type: type);
         },
         onApplyPaymentMethod: () =>
             _applyPaymentMethodToSelected(paymentMethodPresets),
@@ -225,10 +230,7 @@ class _ImportTransactionsPageState extends ConsumerState<ImportTransactionsPage>
       ),
       ImportStep.confirm => ListView(
         children: [
-          if (messageCard != null) ...[
-            messageCard,
-            const SizedBox(height: 12),
-          ],
+          if (messageCard != null) ...[messageCard, const SizedBox(height: 12)],
           _ConfirmStep(
             session: session,
             skipInvalidDrafts: _skipInvalidDrafts,
@@ -266,11 +268,9 @@ class _ImportTransactionsPageState extends ConsumerState<ImportTransactionsPage>
       return;
     }
 
-    await ref.read(importControllerProvider.notifier).loadFile(
-          fileName: file.name,
-          bytes: bytes,
-          categories: categories,
-        );
+    await ref
+        .read(importControllerProvider.notifier)
+        .loadFile(fileName: file.name, bytes: bytes, categories: categories);
   }
 
   Future<List<int>?> _readFileBytes(String? path) async {
@@ -299,15 +299,22 @@ class _ImportTransactionsPageState extends ConsumerState<ImportTransactionsPage>
         return SafeArea(
           child: ListView(
             children: [
-              for (final type in [CategoryType.expense, CategoryType.income]) ...[
+              for (final type in [
+                CategoryType.expense,
+                CategoryType.income,
+              ]) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                   child: Text(
-                    type == CategoryType.expense ? 'Expense Categories' : 'Income Categories',
+                    type == CategoryType.expense
+                        ? 'Expense Categories'
+                        : 'Income Categories',
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
-                for (final category in categories.where((item) => item.type == type))
+                for (final category in categories.where(
+                  (item) => item.type == type,
+                ))
                   ListTile(
                     title: Text(category.name),
                     onTap: () => Navigator.pop(context, category.id),
@@ -323,9 +330,13 @@ class _ImportTransactionsPageState extends ConsumerState<ImportTransactionsPage>
       return;
     }
 
-    final selectedCategory = categories.where((item) => item.id == picked).firstOrNull;
+    final selectedCategory = categories
+        .where((item) => item.id == picked)
+        .firstOrNull;
 
-    ref.read(importControllerProvider.notifier).applyToSelected(
+    ref
+        .read(importControllerProvider.notifier)
+        .applyToSelected(
           type: selectedCategory == null
               ? null
               : (selectedCategory.type == CategoryType.expense
@@ -357,7 +368,9 @@ class _ImportTransactionsPageState extends ConsumerState<ImportTransactionsPage>
       return;
     }
 
-    ref.read(importControllerProvider.notifier).applyToSelected(
+    ref
+        .read(importControllerProvider.notifier)
+        .applyToSelected(
           paymentMethod: value.trim().isEmpty ? null : value.trim(),
           clearPaymentMethod: value.trim().isEmpty,
         );
@@ -373,28 +386,33 @@ class _ImportTransactionsPageState extends ConsumerState<ImportTransactionsPage>
     }
 
     return switch (session.step) {
-      ImportStep.upload => session.rawRows.isEmpty
-          ? null
-          : () => ref
-              .read(importControllerProvider.notifier)
-              .setStep(ImportStep.mapping),
-      ImportStep.mapping => _hasRequiredMapping && session.drafts.isNotEmpty
-          ? () => ref
-              .read(importControllerProvider.notifier)
-              .setStep(ImportStep.preview)
-          : null,
-      ImportStep.preview => session.drafts.isEmpty
-          ? null
-          : () => ref
-              .read(importControllerProvider.notifier)
-              .setStep(ImportStep.confirm),
+      ImportStep.upload =>
+        session.rawRows.isEmpty
+            ? null
+            : () => ref
+                  .read(importControllerProvider.notifier)
+                  .setStep(ImportStep.mapping),
+      ImportStep.mapping =>
+        _hasRequiredMapping && session.drafts.isNotEmpty
+            ? () => ref
+                  .read(importControllerProvider.notifier)
+                  .setStep(ImportStep.preview)
+            : null,
+      ImportStep.preview =>
+        session.drafts.isEmpty
+            ? null
+            : () => ref
+                  .read(importControllerProvider.notifier)
+                  .setStep(ImportStep.confirm),
       ImportStep.confirm => () => _confirmImport(categories),
     };
   }
 
   Future<void> _confirmImport(List<CategoryModel> categories) async {
     try {
-      final saved = await ref.read(importControllerProvider.notifier).commit(
+      final saved = await ref
+          .read(importControllerProvider.notifier)
+          .commit(
             skipInvalidDrafts: _skipInvalidDrafts,
             categories: categories,
           );
@@ -512,7 +530,9 @@ class _UploadStep extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onPickFile,
                 icon: const Icon(Icons.upload_file_outlined),
-                label: Text(session.fileName == null ? 'Choose CSV File' : 'Replace File'),
+                label: Text(
+                  session.fileName == null ? 'Choose CSV File' : 'Replace File',
+                ),
               ),
               if (session.fileName != null) ...[
                 const SizedBox(height: 16),
@@ -558,7 +578,8 @@ class _MappingStep extends StatelessWidget {
                   decoration: InputDecoration(
                     labelText: fieldType.label,
                     helperText:
-                        fieldType == FieldType.amount || fieldType == FieldType.date
+                        fieldType == FieldType.amount ||
+                            fieldType == FieldType.date
                         ? 'Required'
                         : 'Optional',
                   ),
@@ -633,10 +654,7 @@ class _PreviewStep extends StatelessWidget {
       controller: scrollController,
       padding: const EdgeInsets.only(bottom: 12),
       children: [
-        if (messageCard != null) ...[
-          messageCard!,
-          const SizedBox(height: 12),
-        ],
+        if (messageCard != null) ...[messageCard!, const SizedBox(height: 12)],
         _StatsSection(session: session),
         const SizedBox(height: 12),
         TransactionFormSection(
@@ -679,8 +697,7 @@ class _PreviewStep extends StatelessWidget {
                     label: const Text('Mark income'),
                   ),
                   FilledButton.tonalIcon(
-                    onPressed:
-                        selectedCount == 0 ? null : onApplyPaymentMethod,
+                    onPressed: selectedCount == 0 ? null : onApplyPaymentMethod,
                     icon: const Icon(Icons.wallet_outlined),
                     label: const Text('Apply payment method'),
                   ),
@@ -840,10 +857,7 @@ class _DraftEditableCardState extends State<_DraftEditableCard> {
       widget.draft.amount?.toStringAsFixed(2) ?? '',
     );
     _syncController(_payeeController, widget.draft.payee ?? '');
-    _syncController(
-      _paymentMethodController,
-      widget.draft.paymentMethod ?? '',
-    );
+    _syncController(_paymentMethodController, widget.draft.paymentMethod ?? '');
     _syncController(_noteController, widget.draft.note ?? '');
   }
 
@@ -885,10 +899,10 @@ class _DraftEditableCardState extends State<_DraftEditableCard> {
     final categoryName = draft.categoryId == null
         ? 'No category'
         : widget.categories
-              .where((category) => category.id == draft.categoryId)
-              .firstOrNull
-              ?.name ??
-          'Unknown';
+                  .where((category) => category.id == draft.categoryId)
+                  .firstOrNull
+                  ?.name ??
+              'Unknown';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -923,20 +937,20 @@ class _DraftEditableCardState extends State<_DraftEditableCard> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      buildImportedTransactionTitle(
-                        draft,
-                        {
-                          for (final category in widget.categories)
-                            category.id: category,
-                        },
-                      ),
+                      buildImportedTransactionTitle(draft, {
+                        for (final category in widget.categories)
+                          category.id: category,
+                      }),
                       style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: draft.isValid
                       ? scheme.primaryContainer
@@ -1137,15 +1151,17 @@ class _DraftEditableCardState extends State<_DraftEditableCard> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: widget.payeePresets.map((preset) {
-                return ActionChip(
-                  label: Text(preset.value),
-                  onPressed: () {
-                    _payeeController.text = preset.value;
-                    _emitUpdate(widget.draft.copyWith(payee: preset.value));
-                  },
-                );
-              }).toList(growable: false),
+              children: widget.payeePresets
+                  .map((preset) {
+                    return ActionChip(
+                      label: Text(preset.value),
+                      onPressed: () {
+                        _payeeController.text = preset.value;
+                        _emitUpdate(widget.draft.copyWith(payee: preset.value));
+                      },
+                    );
+                  })
+                  .toList(growable: false),
             ),
           ],
           if (widget.paymentMethodPresets.isNotEmpty) ...[
@@ -1153,15 +1169,19 @@ class _DraftEditableCardState extends State<_DraftEditableCard> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: widget.paymentMethodPresets.map((preset) {
-                return ActionChip(
-                  label: Text(preset.value),
-                  onPressed: () {
-                    _paymentMethodController.text = preset.value;
-                    _emitUpdate(draft.copyWith(paymentMethod: preset.value));
-                  },
-                );
-              }).toList(growable: false),
+              children: widget.paymentMethodPresets
+                  .map((preset) {
+                    return ActionChip(
+                      label: Text(preset.value),
+                      onPressed: () {
+                        _paymentMethodController.text = preset.value;
+                        _emitUpdate(
+                          draft.copyWith(paymentMethod: preset.value),
+                        );
+                      },
+                    );
+                  })
+                  .toList(growable: false),
             ),
           ],
           const SizedBox(height: 12),
@@ -1189,7 +1209,9 @@ class _DraftEditableCardState extends State<_DraftEditableCard> {
               }
               _emitUpdate(
                 draft.copyWith(
-                  recurringTemplateId: value == null || value == -1 ? null : value,
+                  recurringTemplateId: value == null || value == -1
+                      ? null
+                      : value,
                   clearRecurringTemplateId: value == null || value == -1,
                   title: selectedTemplate?.title ?? draft.title,
                 ),
@@ -1206,10 +1228,7 @@ class _DraftEditableCardState extends State<_DraftEditableCard> {
               hintText: 'Optional context or reminder',
             ),
             onChanged: (value) => _emitUpdate(
-              draft.copyWith(
-                note: value,
-                clearNote: value.trim().isEmpty,
-              ),
+              draft.copyWith(note: value, clearNote: value.trim().isEmpty),
             ),
           ),
           const SizedBox(height: 10),
@@ -1261,10 +1280,7 @@ class _DraftEditableCardState extends State<_DraftEditableCard> {
     final value = _amountController.text.trim();
     final parsed = double.tryParse(value);
     _emitUpdate(
-      widget.draft.copyWith(
-        amount: parsed,
-        clearAmount: parsed == null,
-      ),
+      widget.draft.copyWith(amount: parsed, clearAmount: parsed == null),
     );
   }
 }
@@ -1279,7 +1295,8 @@ class _BulkPaymentMethodSheet extends StatefulWidget {
   });
 
   @override
-  State<_BulkPaymentMethodSheet> createState() => _BulkPaymentMethodSheetState();
+  State<_BulkPaymentMethodSheet> createState() =>
+      _BulkPaymentMethodSheetState();
 }
 
 class _BulkPaymentMethodSheetState extends State<_BulkPaymentMethodSheet> {
@@ -1356,9 +1373,7 @@ class _BottomActionBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: scheme.surface,
         border: Border(
-          top: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: 1),
-          ),
+          top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 1)),
         ),
       ),
       child: Row(
@@ -1416,10 +1431,7 @@ class _ImportMessageCard extends StatelessWidget {
           Icon(icon, color: foreground),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: foreground),
-            ),
+            child: Text(message, style: TextStyle(color: foreground)),
           ),
         ],
       ),
@@ -1463,9 +1475,9 @@ class _StatPillRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ],
             ),

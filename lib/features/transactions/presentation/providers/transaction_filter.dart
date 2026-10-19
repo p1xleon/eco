@@ -53,17 +53,25 @@ class TransactionFilter {
     return TransactionFilter(
       search: search ?? this.search,
       type: type == const Object() ? this.type : type as TransactionType?,
-      categoryId: categoryId == const Object() ? this.categoryId : categoryId as int?,
+      categoryId: categoryId == const Object()
+          ? this.categoryId
+          : categoryId as int?,
       paymentMethod: paymentMethod == const Object()
           ? this.paymentMethod
           : paymentMethod as String?,
       payee: payee == const Object() ? this.payee : payee as String?,
-      minAmount: minAmount == const Object() ? this.minAmount : minAmount as double?,
-      maxAmount: maxAmount == const Object() ? this.maxAmount : maxAmount as double?,
+      minAmount: minAmount == const Object()
+          ? this.minAmount
+          : minAmount as double?,
+      maxAmount: maxAmount == const Object()
+          ? this.maxAmount
+          : maxAmount as double?,
       recurring: recurring ?? this.recurring,
       syncStatus: syncStatus ?? this.syncStatus,
       notes: notes ?? this.notes,
-      startDate: startDate == const Object() ? this.startDate : startDate as DateTime?,
+      startDate: startDate == const Object()
+          ? this.startDate
+          : startDate as DateTime?,
       endDate: endDate == const Object() ? this.endDate : endDate as DateTime?,
     );
   }
