@@ -1,17 +1,38 @@
 # eco
 
-A new Flutter project.
+A Flutter personal-finance app for tracking income and expenses. Data is stored locally (Isar) and synced to Supabase.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- Transactions: add, edit, filter, group by month or custom group, and import from a file with field mapping
+- Categories and transaction presets (defaults are seeded on first launch)
+- Recurring transactions
+- Dashboard and analytics charts
+- Privacy option to hide transaction amounts
+- Light/dark theme with dynamic color
+- Email sign-up and login via Supabase
 
-A few resources to get you started if this is your first Flutter project:
+## Stack
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Flutter, Riverpod, go_router, Isar (`isar_community`), Supabase, fl_chart. Code is organized by feature under `lib/features`, with shared code in `lib/core` and `lib/shared`.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Setup
+
+1. Install Flutter (Dart SDK `^3.11.0`) and run `flutter pub get`.
+2. Create a `.env` file in the project root (the app throws at startup if either value is missing):
+   ```
+   SUPABASE_URL=...
+   SUPABASE_ANON_KEY=...
+   ```
+3. Apply the SQL in `supabase/migrations` to your Supabase project.
+4. Generate Isar/JSON code if the `*.g.dart` files are out of date:
+   ```
+   dart run build_runner build --delete-conflicting-outputs
+   ```
+5. Run the app with `flutter run`.
+
+## Tests
+
+```
+flutter test
+```
