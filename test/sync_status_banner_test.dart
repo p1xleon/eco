@@ -16,9 +16,7 @@ Future<void> pumpBanner(
         isOnlineProvider.overrideWithValue(isOnline),
         pendingSyncCountProvider.overrideWith((ref) async => pending),
       ],
-      child: const MaterialApp(
-        home: Scaffold(body: SyncStatusBanner()),
-      ),
+      child: const MaterialApp(home: Scaffold(body: SyncStatusBanner())),
     ),
   );
 

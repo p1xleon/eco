@@ -78,20 +78,22 @@ void main() {
       expect(remote.rows.values.single['title'], 'Coffee');
     });
 
-    test('delete of an already-synced record hides it and queues a tombstone',
-        () async {
-      final saved = await repository.add(buildTransaction());
+    test(
+      'delete of an already-synced record hides it and queues a tombstone',
+      () async {
+        final saved = await repository.add(buildTransaction());
 
-      setNetwork(online: false);
-      await repository.delete(saved.id);
+        setNetwork(online: false);
+        await repository.delete(saved.id);
 
-      expect(await repository.getAll(), isEmpty);
-      expect(remote.rows, hasLength(1));
+        expect(await repository.getAll(), isEmpty);
+        expect(remote.rows, hasLength(1));
 
-      final stored = await IsarService.isar.transactionModels.get(saved.id);
-      expect(stored, isNotNull);
-      expect(stored!.syncState, SyncState.pendingDelete);
-    });
+        final stored = await IsarService.isar.transactionModels.get(saved.id);
+        expect(stored, isNotNull);
+        expect(stored!.syncState, SyncState.pendingDelete);
+      },
+    );
 
     test('delete of a never-synced record removes it outright', () async {
       setNetwork(online: false);
@@ -137,24 +139,28 @@ void main() {
       expect(await IsarService.isar.transactionModels.count(), 0);
     });
 
-    test('a failed push leaves the record queued for the next attempt',
-        () async {
-      setNetwork(online: false);
-      await repository.add(buildTransaction());
+    test(
+      'a failed push leaves the record queued for the next attempt',
+      () async {
+        setNetwork(online: false);
+        await repository.add(buildTransaction());
 
-      // Network says it is back, but the server is still refusing.
-      setNetwork(online: true);
-      remote.isReachable = false;
-      await repository.getAll();
+        // Network says it is back, but the server is still refusing.
+        setNetwork(online: true);
+        remote.isReachable = false;
+        await repository.getAll();
 
-      final stored = await IsarService.isar.transactionModels.where().findAll();
-      expect(stored.single.syncState, SyncState.pendingCreate);
+        final stored = await IsarService.isar.transactionModels
+            .where()
+            .findAll();
+        expect(stored.single.syncState, SyncState.pendingCreate);
 
-      remote.isReachable = true;
-      await repository.getAll();
+        remote.isReachable = true;
+        await repository.getAll();
 
-      expect(remote.rows, hasLength(1));
-    });
+        expect(remote.rows, hasLength(1));
+      },
+    );
   });
 
   group('merge', () {
@@ -214,18 +220,20 @@ void main() {
       expect(remote.rows, isEmpty);
     });
 
-    test('a locally created record is not dropped by the delete reconcile',
-        () async {
-      setNetwork(online: false);
-      await repository.add(buildTransaction(title: 'Offline only'));
+    test(
+      'a locally created record is not dropped by the delete reconcile',
+      () async {
+        setNetwork(online: false);
+        await repository.add(buildTransaction(title: 'Offline only'));
 
-      setNetwork(online: true);
-      remote.isReachable = false;
-      final visible = await repository.getAll();
+        setNetwork(online: true);
+        remote.isReachable = false;
+        final visible = await repository.getAll();
 
-      expect(visible, hasLength(1));
-      expect(visible.single.title, 'Offline only');
-    });
+        expect(visible, hasLength(1));
+        expect(visible.single.title, 'Offline only');
+      },
+    );
   });
 
   group('retry budget', () {

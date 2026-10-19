@@ -111,4 +111,14 @@ void main() {
     expect(b, hasLength(26));
     expect(b.fold(0.0, (s, x) => s + x.expense), 7);
   });
+
+  test('all-time keeps future-dated rows instead of dropping every bucket', () {
+    final b = buildBuckets(
+      [tx(DateTime(2026, 6, 5), 10, TransactionType.expense)],
+      AnalyticsPeriod.all,
+      DateTime(2026, 3, 15),
+    );
+    expect(b, isNotEmpty);
+    expect(b.fold(0.0, (s, x) => s + x.expense), 10);
+  });
 }

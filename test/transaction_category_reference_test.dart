@@ -95,39 +95,44 @@ void main() {
       expect(row['category_id'], category.id);
     });
 
-    test('a pulled row follows the uuid, not this device\'s local id', () async {
-      final food = await addCategory('Food');
-      final travel = await addCategory('Travel');
+    test(
+      'a pulled row follows the uuid, not this device\'s local id',
+      () async {
+        final food = await addCategory('Food');
+        final travel = await addCategory('Travel');
 
-      // The row was written by a device where the *local* id of Travel was
-      // whatever Food happens to be here. Only the uuid is trustworthy.
-      remote.rows['remote-x'] = serverRow(
-        id: 'remote-x',
-        legacyCategoryId: food.id,
-        categoryRemoteId: travel.remoteId,
-      );
+        // The row was written by a device where the *local* id of Travel was
+        // whatever Food happens to be here. Only the uuid is trustworthy.
+        remote.rows['remote-x'] = serverRow(
+          id: 'remote-x',
+          legacyCategoryId: food.id,
+          categoryRemoteId: travel.remoteId,
+        );
 
-      repository.invalidateSyncWindow();
-      final transactions = await repository.getAll();
+        repository.invalidateSyncWindow();
+        final transactions = await repository.getAll();
 
-      expect(transactions.single.categoryId, travel.id);
-      expect(transactions.single.categoryId, isNot(food.id));
-    });
+        expect(transactions.single.categoryId, travel.id);
+        expect(transactions.single.categoryId, isNot(food.id));
+      },
+    );
 
-    test('a row written before the uuid column keeps the legacy reference',
-        () async {
-      final food = await addCategory('Food');
+    test(
+      'a row written before the uuid column keeps the legacy reference',
+      () async {
+        final food = await addCategory('Food');
 
-      remote.rows['remote-legacy'] = serverRow(
-        id: 'remote-legacy',
-        legacyCategoryId: food.id,
-      );
+        remote.rows['remote-legacy'] = serverRow(
+          id: 'remote-legacy',
+          legacyCategoryId: food.id,
+        );
 
-      repository.invalidateSyncWindow();
-      final transactions = await repository.getAll();
+        repository.invalidateSyncWindow();
+        final transactions = await repository.getAll();
 
-      expect(transactions.single.categoryId, food.id);
-    });
+        expect(transactions.single.categoryId, food.id);
+      },
+    );
 
     test('a legacy row is upgraded when the user edits it', () async {
       final food = await addCategory('Food');
@@ -221,10 +226,14 @@ void main() {
       }, send);
 
       expect(payloads, hasLength(2));
-      expect(payloads.first.containsKey(transactionCategoryRemoteIdColumn),
-          isTrue);
-      expect(payloads.last.containsKey(transactionCategoryRemoteIdColumn),
-          isFalse);
+      expect(
+        payloads.first.containsKey(transactionCategoryRemoteIdColumn),
+        isTrue,
+      );
+      expect(
+        payloads.last.containsKey(transactionCategoryRemoteIdColumn),
+        isFalse,
+      );
       expect(fallback.serverHasColumn, isFalse);
 
       // The doomed attempt is not repeated.
@@ -234,8 +243,10 @@ void main() {
       }, send);
 
       expect(payloads, hasLength(3));
-      expect(payloads.last.containsKey(transactionCategoryRemoteIdColumn),
-          isFalse);
+      expect(
+        payloads.last.containsKey(transactionCategoryRemoteIdColumn),
+        isFalse,
+      );
     });
 
     test('a real rejection is not mistaken for a missing column', () async {

@@ -80,8 +80,13 @@ List<BucketTotal> buildBuckets(
     final earliest = txs
         .map((tx) => tx.date)
         .reduce((a, b) => a.isBefore(b) ? a : b);
+    final latest = txs
+        .map((tx) => tx.date)
+        .reduce((a, b) => a.isAfter(b) ? a : b);
     start = DateTime(earliest.year, earliest.month);
-    end = DateTime(now.year, now.month + 1);
+    // Cover future-dated rows too, or they vanish from the charts.
+    final lastMonth = latest.isAfter(now) ? latest : now;
+    end = DateTime(lastMonth.year, lastMonth.month + 1);
   }
 
   final daily = period.isDaily;

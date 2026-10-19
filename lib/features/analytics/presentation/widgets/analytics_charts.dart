@@ -18,6 +18,9 @@ class DonutSlice {
   });
 }
 
+int _percent(double amount, double total) =>
+    total <= 0 ? 0 : (amount / total * 100).round();
+
 String _money(TransactionVisibilityState v, double amount) =>
     v.displayAmount('₹${amount.toStringAsFixed(2)}');
 
@@ -219,7 +222,7 @@ class CategoryDonutCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      '${(top.amount / total * 100).round()}%',
+                      '${_percent(top.amount, total)}%',
                       style: textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -268,7 +271,7 @@ class CategoryDonutCard extends StatelessWidget {
                   SizedBox(
                     width: 48,
                     child: Text(
-                      '${(s.amount / total * 100).round()}%',
+                      '${_percent(s.amount, total)}%',
                       textAlign: TextAlign.end,
                       style: textTheme.bodySmall,
                     ),
@@ -300,6 +303,8 @@ class TrendLineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (buckets.isEmpty) return const SizedBox.shrink();
+
     final values = [for (final b in buckets) expense ? b.expense : b.income];
     final starts = [for (final b in buckets) b.start];
     final formats = _monthlyFormats(starts);

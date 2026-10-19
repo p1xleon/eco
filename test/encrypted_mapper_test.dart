@@ -14,8 +14,9 @@ import 'package:isar_community/isar.dart';
 
 import 'support/test_isar.dart';
 
-FieldCipher cipherOf(int seed) =>
-    FieldCipher(SecretKeyData(List<int>.generate(32, (i) => (i + seed) & 0xFF)));
+FieldCipher cipherOf(int seed) => FieldCipher(
+  SecretKeyData(List<int>.generate(32, (i) => (i + seed) & 0xFF)),
+);
 
 TransactionModel buildTransaction() {
   return TransactionModel()
@@ -153,8 +154,11 @@ void main() {
       expect(json['next_due_date'], '2026-04-01T00:00:00.000Z');
       expect(json['is_active'], true);
 
-      final restored =
-          RecurringTransactionMapper.fromJson(json, categoryId: 7, cipher: cipher);
+      final restored = RecurringTransactionMapper.fromJson(
+        json,
+        categoryId: 7,
+        cipher: cipher,
+      );
 
       expect(restored.title, 'Rent');
       expect(restored.defaultAmount, 1200);

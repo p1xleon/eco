@@ -13,8 +13,9 @@ import 'package:isar_community/isar.dart';
 
 import 'support/test_isar.dart';
 
-FieldCipher cipherOf(int seed) =>
-    FieldCipher(SecretKeyData(List<int>.generate(32, (i) => (i + seed) & 0xFF)));
+FieldCipher cipherOf(int seed) => FieldCipher(
+  SecretKeyData(List<int>.generate(32, (i) => (i + seed) & 0xFF)),
+);
 
 TransactionModel buildTransaction({
   String title = 'Water bill',
@@ -99,8 +100,10 @@ void main() {
       expect(transaction.date, DateTime.utc(2026, 3, 12));
 
       expect(restored.categories.single.name, 'Groceries');
-      expect(restored.recurring.single.intervalType,
-          RecurringIntervalType.monthly);
+      expect(
+        restored.recurring.single.intervalType,
+        RecurringIntervalType.monthly,
+      );
       expect(restored.recurring.single.endDate, DateTime.utc(2027, 4, 1));
       expect(restored.presets.single.value, 'Amazon');
     });
@@ -138,8 +141,9 @@ void main() {
     test('restore replaces local data and queues it all for upload', () async {
       // Something stale that must not survive the restore.
       await IsarService.isar.writeTxn(() async {
-        await IsarService.isar.transactionModels
-            .put(buildTransaction(title: 'Stale', remoteId: 'old'));
+        await IsarService.isar.transactionModels.put(
+          buildTransaction(title: 'Stale', remoteId: 'old'),
+        );
       });
 
       final payload = await service.read(
@@ -156,10 +160,12 @@ void main() {
 
       await service.restore(payload);
 
-      final transactions =
-          await IsarService.isar.transactionModels.where().findAll();
-      final categories =
-          await IsarService.isar.categoryModels.where().findAll();
+      final transactions = await IsarService.isar.transactionModels
+          .where()
+          .findAll();
+      final categories = await IsarService.isar.categoryModels
+          .where()
+          .findAll();
 
       expect(transactions.map((t) => t.title), ['Rent']);
       expect(transactions.single.remoteId, isNull);

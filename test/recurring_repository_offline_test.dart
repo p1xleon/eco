@@ -105,27 +105,31 @@ void main() {
     expect(remote.rows, isEmpty);
   });
 
-  test('a template the server cannot describe is not deleted locally',
-      () async {
-    final saved = await repository.save(buildTemplate(categoryId: categoryId));
-    final remoteId = saved.remoteId!;
+  test(
+    'a template the server cannot describe is not deleted locally',
+    () async {
+      final saved = await repository.save(
+        buildTemplate(categoryId: categoryId),
+      );
+      final remoteId = saved.remoteId!;
 
-    // The server row points at a category this device does not have, so it
-    // cannot be parsed into a local template. That must not read as "deleted
-    // on the server".
-    remote.rows[remoteId] = {
-      ...remote.rows[remoteId]!,
-      'category_id': 'category-unknown-elsewhere',
-    };
+      // The server row points at a category this device does not have, so it
+      // cannot be parsed into a local template. That must not read as "deleted
+      // on the server".
+      remote.rows[remoteId] = {
+        ...remote.rows[remoteId]!,
+        'category_id': 'category-unknown-elsewhere',
+      };
 
-    await IsarService.isar.writeTxn(() async {
-      await IsarService.isar.categoryModels.clear();
-    });
+      await IsarService.isar.writeTxn(() async {
+        await IsarService.isar.categoryModels.clear();
+      });
 
-    repository.invalidateSyncWindow();
-    final templates = await repository.getAll();
+      repository.invalidateSyncWindow();
+      final templates = await repository.getAll();
 
-    expect(templates, hasLength(1));
-    expect(templates.single.remoteId, remoteId);
-  });
+      expect(templates, hasLength(1));
+      expect(templates.single.remoteId, remoteId);
+    },
+  );
 }
