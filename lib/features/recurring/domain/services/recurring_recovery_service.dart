@@ -109,6 +109,16 @@ class RecurringRecoveryService {
     var linkedTransactionCount = 0;
 
     for (final transaction in transactions) {
+      // A link by server id belongs to a template that syncs in on its own.
+      // Its local id is another device's, so "recovering" it would invent a
+      // duplicate template.
+      final recurringId = transaction.recurringId?.trim();
+      if (recurringId != null &&
+          recurringId.isNotEmpty &&
+          int.tryParse(recurringId) == null) {
+        continue;
+      }
+
       final templateId = _resolveTemplateId(transaction);
       if (templateId == null) {
         continue;

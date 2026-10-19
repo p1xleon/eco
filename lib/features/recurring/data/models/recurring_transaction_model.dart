@@ -36,6 +36,12 @@ class RecurringTransactionModel {
 
   late DateTime nextDueDate;
 
+  /// The day of the month the user meant (the 31st), kept because [nextDueDate]
+  /// is clamped to short months: without it a monthly 31st becomes the 28th
+  /// after February and never recovers. Local only; null means "use the day of
+  /// [nextDueDate]".
+  int? anchorDay;
+
   DateTime? endDate;
 
   late bool isActive;

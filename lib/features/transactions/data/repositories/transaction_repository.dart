@@ -195,6 +195,40 @@ class TransactionRepository {
     }
   }
 
+  /// The instance of a recurring template already recorded for [day], if any.
+  ///
+  /// Matches by the server id when the instance carries one, and by this
+  /// device's template id only for instances tagged with that same id: another
+  /// device's local ids mean something else here.
+  Future<TransactionModel?> findRecurringInstance({
+    required int templateId,
+    required DateTime day,
+    String? templateRemoteId,
+  }) async {
+    final start = DateTime(day.year, day.month, day.day);
+    final end = DateTime(day.year, day.month, day.day + 1);
+
+    final sameDay = await _isar.transactionModels
+        .filter()
+        .dateBetween(start, end, includeUpper: false)
+        .not()
+        .syncStateEqualTo(SyncState.pendingDelete)
+        .findAll();
+
+    for (final tx in sameDay) {
+      if (tx.isRecurringInstance != true) continue;
+
+      final byRemote =
+          templateRemoteId != null && tx.recurringId == templateRemoteId;
+      final byLocal =
+          tx.recurringTemplateId == templateId &&
+          (tx.recurringId == null || tx.recurringId == templateId.toString());
+      if (byRemote || byLocal) return tx;
+    }
+
+    return null;
+  }
+
   /// Number of records still waiting to reach the server.
   Future<int> pendingCount() {
     return _isar.transactionModels

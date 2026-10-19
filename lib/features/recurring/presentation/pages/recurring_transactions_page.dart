@@ -933,6 +933,14 @@ class _RecurringTemplateEditorSheetState
     final template = widget.initial ?? RecurringTransactionModel();
     final createdAt = widget.initial?.createdAt ?? DateTime.now();
 
+    // A date the user just picked is the day they mean; only an untouched date
+    // keeps the remembered anchor.
+    final initial = widget.initial;
+    if (initial == null ||
+        !DateUtils.isSameDay(initial.nextDueDate, _nextDueDate)) {
+      template.anchorDay = null;
+    }
+
     template
       ..title = title
       ..type = _type

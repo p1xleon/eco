@@ -29,79 +29,84 @@ const RecurringTransactionModelSchema = CollectionSchema(
       type: IsarType.byte,
       enumMap: _RecurringTransactionModelamountTypeEnumValueMap,
     ),
-    r'categoryId': PropertySchema(
+    r'anchorDay': PropertySchema(
       id: 2,
+      name: r'anchorDay',
+      type: IsarType.long,
+    ),
+    r'categoryId': PropertySchema(
+      id: 3,
       name: r'categoryId',
       type: IsarType.long,
     ),
     r'createdAt': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'createdAt',
       type: IsarType.dateTime,
     ),
     r'defaultAmount': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'defaultAmount',
       type: IsarType.double,
     ),
     r'endDate': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'endDate',
       type: IsarType.dateTime,
     ),
     r'intervalCount': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'intervalCount',
       type: IsarType.long,
     ),
     r'intervalType': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'intervalType',
       type: IsarType.byte,
       enumMap: _RecurringTransactionModelintervalTypeEnumValueMap,
     ),
-    r'isActive': PropertySchema(id: 8, name: r'isActive', type: IsarType.bool),
+    r'isActive': PropertySchema(id: 9, name: r'isActive', type: IsarType.bool),
     r'lastSyncError': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'lastSyncError',
       type: IsarType.string,
     ),
     r'localUpdatedAt': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'localUpdatedAt',
       type: IsarType.dateTime,
     ),
     r'nextDueDate': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'nextDueDate',
       type: IsarType.dateTime,
     ),
-    r'note': PropertySchema(id: 12, name: r'note', type: IsarType.string),
+    r'note': PropertySchema(id: 13, name: r'note', type: IsarType.string),
     r'remoteId': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'remoteId',
       type: IsarType.string,
     ),
     r'syncAttempts': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'syncAttempts',
       type: IsarType.long,
     ),
     r'syncState': PropertySchema(
-      id: 15,
+      id: 16,
       name: r'syncState',
       type: IsarType.byte,
       enumMap: _RecurringTransactionModelsyncStateEnumValueMap,
     ),
-    r'title': PropertySchema(id: 16, name: r'title', type: IsarType.string),
+    r'title': PropertySchema(id: 17, name: r'title', type: IsarType.string),
     r'type': PropertySchema(
-      id: 17,
+      id: 18,
       name: r'type',
       type: IsarType.byte,
       enumMap: _RecurringTransactionModeltypeEnumValueMap,
     ),
     r'updatedAt': PropertySchema(
-      id: 18,
+      id: 19,
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
@@ -164,23 +169,24 @@ void _recurringTransactionModelSerialize(
 ) {
   writer.writeString(offsets[0], object.accountId);
   writer.writeByte(offsets[1], object.amountType.index);
-  writer.writeLong(offsets[2], object.categoryId);
-  writer.writeDateTime(offsets[3], object.createdAt);
-  writer.writeDouble(offsets[4], object.defaultAmount);
-  writer.writeDateTime(offsets[5], object.endDate);
-  writer.writeLong(offsets[6], object.intervalCount);
-  writer.writeByte(offsets[7], object.intervalType.index);
-  writer.writeBool(offsets[8], object.isActive);
-  writer.writeString(offsets[9], object.lastSyncError);
-  writer.writeDateTime(offsets[10], object.localUpdatedAt);
-  writer.writeDateTime(offsets[11], object.nextDueDate);
-  writer.writeString(offsets[12], object.note);
-  writer.writeString(offsets[13], object.remoteId);
-  writer.writeLong(offsets[14], object.syncAttempts);
-  writer.writeByte(offsets[15], object.syncState.index);
-  writer.writeString(offsets[16], object.title);
-  writer.writeByte(offsets[17], object.type.index);
-  writer.writeDateTime(offsets[18], object.updatedAt);
+  writer.writeLong(offsets[2], object.anchorDay);
+  writer.writeLong(offsets[3], object.categoryId);
+  writer.writeDateTime(offsets[4], object.createdAt);
+  writer.writeDouble(offsets[5], object.defaultAmount);
+  writer.writeDateTime(offsets[6], object.endDate);
+  writer.writeLong(offsets[7], object.intervalCount);
+  writer.writeByte(offsets[8], object.intervalType.index);
+  writer.writeBool(offsets[9], object.isActive);
+  writer.writeString(offsets[10], object.lastSyncError);
+  writer.writeDateTime(offsets[11], object.localUpdatedAt);
+  writer.writeDateTime(offsets[12], object.nextDueDate);
+  writer.writeString(offsets[13], object.note);
+  writer.writeString(offsets[14], object.remoteId);
+  writer.writeLong(offsets[15], object.syncAttempts);
+  writer.writeByte(offsets[16], object.syncState.index);
+  writer.writeString(offsets[17], object.title);
+  writer.writeByte(offsets[18], object.type.index);
+  writer.writeDateTime(offsets[19], object.updatedAt);
 }
 
 RecurringTransactionModel _recurringTransactionModelDeserialize(
@@ -196,36 +202,37 @@ RecurringTransactionModel _recurringTransactionModelDeserialize(
         offsets[1],
       )] ??
       RecurringAmountType.fixed;
-  object.categoryId = reader.readLong(offsets[2]);
-  object.createdAt = reader.readDateTime(offsets[3]);
-  object.defaultAmount = reader.readDoubleOrNull(offsets[4]);
-  object.endDate = reader.readDateTimeOrNull(offsets[5]);
+  object.anchorDay = reader.readLongOrNull(offsets[2]);
+  object.categoryId = reader.readLong(offsets[3]);
+  object.createdAt = reader.readDateTime(offsets[4]);
+  object.defaultAmount = reader.readDoubleOrNull(offsets[5]);
+  object.endDate = reader.readDateTimeOrNull(offsets[6]);
   object.id = id;
-  object.intervalCount = reader.readLong(offsets[6]);
+  object.intervalCount = reader.readLong(offsets[7]);
   object.intervalType =
       _RecurringTransactionModelintervalTypeValueEnumMap[reader.readByteOrNull(
-        offsets[7],
+        offsets[8],
       )] ??
       RecurringIntervalType.daily;
-  object.isActive = reader.readBool(offsets[8]);
-  object.lastSyncError = reader.readStringOrNull(offsets[9]);
-  object.localUpdatedAt = reader.readDateTimeOrNull(offsets[10]);
-  object.nextDueDate = reader.readDateTime(offsets[11]);
-  object.note = reader.readStringOrNull(offsets[12]);
-  object.remoteId = reader.readStringOrNull(offsets[13]);
-  object.syncAttempts = reader.readLong(offsets[14]);
+  object.isActive = reader.readBool(offsets[9]);
+  object.lastSyncError = reader.readStringOrNull(offsets[10]);
+  object.localUpdatedAt = reader.readDateTimeOrNull(offsets[11]);
+  object.nextDueDate = reader.readDateTime(offsets[12]);
+  object.note = reader.readStringOrNull(offsets[13]);
+  object.remoteId = reader.readStringOrNull(offsets[14]);
+  object.syncAttempts = reader.readLong(offsets[15]);
   object.syncState =
       _RecurringTransactionModelsyncStateValueEnumMap[reader.readByteOrNull(
-        offsets[15],
+        offsets[16],
       )] ??
       SyncState.synced;
-  object.title = reader.readString(offsets[16]);
+  object.title = reader.readString(offsets[17]);
   object.type =
       _RecurringTransactionModeltypeValueEnumMap[reader.readByteOrNull(
-        offsets[17],
+        offsets[18],
       )] ??
       TransactionType.income;
-  object.updatedAt = reader.readDateTimeOrNull(offsets[18]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[19]);
   return object;
 }
 
@@ -244,48 +251,50 @@ P _recurringTransactionModelDeserializeProp<P>(
               RecurringAmountType.fixed)
           as P;
     case 2:
-      return (reader.readLong(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 3:
-      return (reader.readDateTime(offset)) as P;
-    case 4:
-      return (reader.readDoubleOrNull(offset)) as P;
-    case 5:
-      return (reader.readDateTimeOrNull(offset)) as P;
-    case 6:
       return (reader.readLong(offset)) as P;
+    case 4:
+      return (reader.readDateTime(offset)) as P;
+    case 5:
+      return (reader.readDoubleOrNull(offset)) as P;
+    case 6:
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 7:
+      return (reader.readLong(offset)) as P;
+    case 8:
       return (_RecurringTransactionModelintervalTypeValueEnumMap[reader
                   .readByteOrNull(offset)] ??
               RecurringIntervalType.daily)
           as P;
-    case 8:
-      return (reader.readBool(offset)) as P;
     case 9:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 10:
-      return (reader.readDateTimeOrNull(offset)) as P;
-    case 11:
-      return (reader.readDateTime(offset)) as P;
-    case 12:
       return (reader.readStringOrNull(offset)) as P;
+    case 11:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 12:
+      return (reader.readDateTime(offset)) as P;
     case 13:
       return (reader.readStringOrNull(offset)) as P;
     case 14:
-      return (reader.readLong(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 15:
+      return (reader.readLong(offset)) as P;
+    case 16:
       return (_RecurringTransactionModelsyncStateValueEnumMap[reader
                   .readByteOrNull(offset)] ??
               SyncState.synced)
           as P;
-    case 16:
-      return (reader.readString(offset)) as P;
     case 17:
+      return (reader.readString(offset)) as P;
+    case 18:
       return (_RecurringTransactionModeltypeValueEnumMap[reader.readByteOrNull(
                 offset,
               )] ??
               TransactionType.income)
           as P;
-    case 18:
+    case 19:
       return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -738,6 +747,103 @@ extension RecurringTransactionModelQueryFilter
       return query.addFilterCondition(
         FilterCondition.between(
           property: r'amountType',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  anchorDayIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'anchorDay'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  anchorDayIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'anchorDay'),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  anchorDayEqualTo(int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'anchorDay', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  anchorDayGreaterThan(int? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'anchorDay',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  anchorDayLessThan(int? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'anchorDay',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterFilterCondition
+  >
+  anchorDayBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'anchorDay',
           lower: lower,
           includeLower: includeLower,
           upper: upper,
@@ -2682,6 +2788,28 @@ extension RecurringTransactionModelQuerySortBy
     RecurringTransactionModel,
     QAfterSortBy
   >
+  sortByAnchorDay() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'anchorDay', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  sortByAnchorDayDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'anchorDay', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
   sortByCategoryId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'categoryId', Sort.asc);
@@ -3108,6 +3236,28 @@ extension RecurringTransactionModelQuerySortThenBy
     RecurringTransactionModel,
     QAfterSortBy
   >
+  thenByAnchorDay() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'anchorDay', Sort.asc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
+  thenByAnchorDayDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'anchorDay', Sort.desc);
+    });
+  }
+
+  QueryBuilder<
+    RecurringTransactionModel,
+    RecurringTransactionModel,
+    QAfterSortBy
+  >
   thenByCategoryId() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'categoryId', Sort.asc);
@@ -3522,6 +3672,13 @@ extension RecurringTransactionModelQueryWhereDistinct
   }
 
   QueryBuilder<RecurringTransactionModel, RecurringTransactionModel, QDistinct>
+  distinctByAnchorDay() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'anchorDay');
+    });
+  }
+
+  QueryBuilder<RecurringTransactionModel, RecurringTransactionModel, QDistinct>
   distinctByCategoryId() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'categoryId');
@@ -3668,6 +3825,13 @@ extension RecurringTransactionModelQueryProperty
   amountTypeProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'amountType');
+    });
+  }
+
+  QueryBuilder<RecurringTransactionModel, int?, QQueryOperations>
+  anchorDayProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'anchorDay');
     });
   }
 

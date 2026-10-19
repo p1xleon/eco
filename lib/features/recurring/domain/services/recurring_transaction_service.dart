@@ -174,6 +174,7 @@ class RecurringTransactionService {
     DateTime? fromDate,
   }) {
     final base = _dateOnly(fromDate ?? template.nextDueDate);
+    final anchor = template.anchorDay ?? base.day;
 
     switch (template.intervalType) {
       case RecurringIntervalType.daily:
@@ -181,9 +182,9 @@ class RecurringTransactionService {
       case RecurringIntervalType.weekly:
         return base.add(Duration(days: 7 * template.intervalCount));
       case RecurringIntervalType.monthly:
-        return _addMonthsClamped(base, template.intervalCount);
+        return _addMonthsClamped(base, template.intervalCount, anchor);
       case RecurringIntervalType.yearly:
-        return _addYearsClamped(base, template.intervalCount);
+        return _addYearsClamped(base, template.intervalCount, anchor);
     }
   }
 
@@ -194,21 +195,36 @@ class RecurringTransactionService {
   }) async {
     final resolvedAmount = _resolveAmount(template, amount);
     final now = DateTime.now();
+    // Dated on the day it was due: confirming a backlog would otherwise pile
+    // every missed period onto today.
+    final dueDate = _dateOnly(template.nextDueDate);
     final transaction = TransactionModel()
       ..title = template.title
       ..amount = resolvedAmount
-      ..date = transactionDate ?? now
+      ..date = transactionDate ?? dueDate
       ..type = template.type
       ..categoryId = template.categoryId
       ..note = template.note
       ..createdAt = now
       ..updatedAt = now
-      ..recurringId = template.id.toString()
+      // The server id once there is one: another device's local id means
+      // something else here.
+      ..recurringId = template.remoteId ?? template.id.toString()
       ..recurringTemplateId = template.id
       ..isRecurringInstance = true;
 
-    final savedTransaction = await transactionRepository.add(transaction);
+    // The transaction and the template advance are two writes. If the app dies
+    // between them, or the button is tapped twice, this period is already
+    // recorded: reuse it instead of adding it again.
+    final existing = await transactionRepository.findRecurringInstance(
+      templateId: template.id,
+      templateRemoteId: template.remoteId,
+      day: dueDate,
+    );
+    final savedTransaction =
+        existing ?? await transactionRepository.add(transaction);
 
+    template.anchorDay ??= dueDate.day;
     template.nextDueDate = calculateNextDueDate(template);
     if (_isPastEndDate(template)) {
       template.isActive = false;
@@ -222,6 +238,7 @@ class RecurringTransactionService {
   Future<void> skipRecurringTransaction(
     RecurringTransactionModel template,
   ) async {
+    template.anchorDay ??= _dateOnly(template.nextDueDate).day;
     template.nextDueDate = calculateNextDueDate(template);
     if (_isPastEndDate(template)) {
       template.isActive = false;
@@ -279,7 +296,7 @@ class RecurringTransactionService {
     return _dateOnly(template.nextDueDate).isAfter(_dateOnly(endDate));
   }
 
-  DateTime _addMonthsClamped(DateTime value, int months) {
+  DateTime _addMonthsClamped(DateTime value, int months, int anchorDay) {
     final targetMonth = value.month + months;
     final firstDayOfTargetMonth = DateTime(value.year, targetMonth, 1);
     final lastDay = DateTime(
@@ -291,18 +308,18 @@ class RecurringTransactionService {
     return DateTime(
       firstDayOfTargetMonth.year,
       firstDayOfTargetMonth.month,
-      value.day > lastDay ? lastDay : value.day,
+      anchorDay > lastDay ? lastDay : anchorDay,
     );
   }
 
-  DateTime _addYearsClamped(DateTime value, int years) {
+  DateTime _addYearsClamped(DateTime value, int years, int anchorDay) {
     final targetYear = value.year + years;
     final lastDay = DateTime(targetYear, value.month + 1, 0).day;
 
     return DateTime(
       targetYear,
       value.month,
-      value.day > lastDay ? lastDay : value.day,
+      anchorDay > lastDay ? lastDay : anchorDay,
     );
   }
 }
