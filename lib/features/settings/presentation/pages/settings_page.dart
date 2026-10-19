@@ -8,6 +8,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/auth/auth_provider.dart';
 import '../../../../core/backup/backup_codec.dart';
 import '../../../../core/backup/backup_providers.dart';
+import '../../../../core/backup/backup_service.dart';
+import '../../../../core/backup/backup_schedule.dart';
 import '../../../../core/crypto/crypto_providers.dart';
 import '../../../../core/database/isar_service.dart';
 import '../../../../core/network/connectivity_provider.dart';
@@ -1530,6 +1532,15 @@ Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
   await IsarService.resetLocalData();
   await auth.signOut();
 
+  // The next person to sign in here must not inherit this account's key or its
+  // backups, which that key can open. Best effort: a failure here must not leave
+  // the user half signed out.
+  try {
+    await BackupService.deleteAllSnapshots();
+    await BackupSchedule.clearMarker();
+    await container.read(dataKeyProvider.notifier).forget();
+  } catch (_) {}
+
   container.invalidate(transactionsProvider);
   container.invalidate(categoriesProvider);
   container.invalidate(paymentMethodPresetsProvider);
@@ -1542,7 +1553,9 @@ Future<_LogoutChoice?> _askToLogout(BuildContext context) {
     builder: (context) => AlertDialog(
       title: const Text('Logout'),
       content: const Text(
-        'This will clear all local data on this device and sign you out.',
+        'This will clear all local data on this device and sign you out. If you use '
+        'encryption, the key is removed from this device too, so keep your '
+        'recovery phrase: you will need it when you sign back in.',
       ),
       actions: [
         TextButton(

@@ -139,6 +139,18 @@ class BackupService {
     }
   }
 
+  /// Deletes every automatic backup. Called on sign-out: they are encrypted with
+  /// this device's key, so left behind they could be opened and restored into
+  /// the next account that signs in here.
+  static Future<void> deleteAllSnapshots() async {
+    final root = await getApplicationDocumentsDirectory();
+    final directory = Directory('${root.path}/$directoryName');
+
+    if (await directory.exists()) {
+      await directory.delete(recursive: true);
+    }
+  }
+
   Future<Directory> _directory() async {
     final root = await getApplicationDocumentsDirectory();
     final directory = Directory('${root.path}/$directoryName');

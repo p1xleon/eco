@@ -97,6 +97,12 @@ class BackupSchedule {
     }
   }
 
+  /// Forgets when the last backup ran. Part of clearing a device on sign-out.
+  static Future<void> clearMarker() async {
+    final file = await _file();
+    if (await file.exists()) await file.delete();
+  }
+
   static Future<File> _file() async {
     final dir = await getApplicationDocumentsDirectory();
     return File('${dir.path}/$_fileName');
