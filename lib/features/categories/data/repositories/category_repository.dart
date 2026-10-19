@@ -5,6 +5,7 @@ import '../../../../core/database/isar_service.dart';
 import '../../../../core/network/network_monitor.dart';
 import '../../../../core/network/remote_call.dart';
 import '../../../../core/sync/sync_gate.dart';
+import '../../../../core/sync/sync_issues.dart';
 import '../../../../core/sync/sync_state.dart';
 import '../models/category_mapper.dart';
 import '../models/category_model.dart';
@@ -30,7 +31,7 @@ class CategoryRepository {
     if (_canSync) {
       try {
         await _gate.run(() async {
-          await _mergeRemoteCategories(await fetchRemoteCategories());
+          await _pullRemoteCategories();
           await pushPendingChanges();
         });
       } catch (_) {
@@ -245,9 +246,34 @@ class CategoryRepository {
     });
   }
 
+  /// Skips rows this device cannot read instead of failing the whole pull, but
+  /// still counts them as present on the server so good local copies survive.
+  Future<void> _pullRemoteCategories() async {
+    final data = await remote.fetchCategories();
+    final readable = <CategoryModel>[];
+    var unreadable = 0;
+    for (final json in data) {
+      try {
+        readable.add(CategoryMapper.fromJson(json, cipher: cipher));
+      } catch (_) {
+        unreadable++;
+      }
+    }
+    SyncIssues.reportUnreadable('categories', unreadable);
+
+    await _mergeRemoteCategories(
+      readable,
+      serverIds: {
+        for (final json in data)
+          if (json['id'] is String) json['id'] as String,
+      },
+    );
+  }
+
   Future<void> _mergeRemoteCategories(
-    List<CategoryModel> remoteCategories,
-  ) async {
+    List<CategoryModel> remoteCategories, {
+    Set<String>? serverIds,
+  }) async {
     final localCategories = await _isar.categoryModels.where().findAll();
     final localByRemoteId = <String, CategoryModel>{
       for (final category in localCategories)
@@ -311,7 +337,7 @@ class CategoryRepository {
       for (final category in localCategories)
         if (category.syncState == SyncState.synced &&
             category.remoteId != null &&
-            !remoteIds.contains(category.remoteId))
+            !(serverIds ?? remoteIds).contains(category.remoteId))
           category.id,
     ];
 

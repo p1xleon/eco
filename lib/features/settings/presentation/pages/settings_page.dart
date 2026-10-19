@@ -13,6 +13,7 @@ import '../../../../core/database/isar_service.dart';
 import '../../../../core/network/connectivity_provider.dart';
 import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../../core/sync/sync_providers.dart';
+import '../../../../core/sync/sync_issues.dart';
 import '../../../../core/sync/sync_state.dart';
 import '../../../../core/theme/theme_mode_setting.dart';
 import '../../../../core/theme/theme_provider.dart';
@@ -857,6 +858,21 @@ class _SyncSectionState extends ConsumerState<_SyncSection> {
               ),
             ],
           ),
+        ),
+        ValueListenableBuilder<int>(
+          valueListenable: SyncIssues.unreadable,
+          builder: (context, count, _) => count == 0
+              ? const SizedBox.shrink()
+              : Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    '$count record${count == 1 ? '' : 's'} on the server could '
+                    'not be read on this device and ${count == 1 ? 'was' : 'were'} '
+                    'skipped. If encryption is on, enter your recovery phrase '
+                    'under Encryption.',
+                    style: TextStyle(color: scheme.error),
+                  ),
+                ),
         ),
         if (failures.isNotEmpty) ...[
           const SizedBox(height: 10),

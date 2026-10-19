@@ -6,6 +6,7 @@ import '../../../../core/network/network_monitor.dart';
 import '../../../../core/network/remote_call.dart';
 import '../../../../core/sync/sync_gate.dart';
 import '../../../../core/sync/sync_state.dart';
+import '../../../../core/sync/sync_issues.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/data/repositories/category_repository.dart';
 import '../models/transaction_mapper.dart';
@@ -340,17 +341,34 @@ class TransactionRepository {
     final data = await remote.fetchTransactions();
     final categoryIdsByRemoteId = await _localCategoryIdsByRemoteId();
 
-    final transactions = [
-      for (final json in data)
-        TransactionMapper.fromJson(
-          json,
-          categoryId:
-              categoryIdsByRemoteId[json[transactionCategoryRemoteIdColumn]],
-          cipher: cipher,
-        ),
-    ];
+    // One unreadable row (wrong key, corrupted ciphertext) must not freeze sync
+    // for every other row. It is skipped, counted, and still treated as present
+    // on the server so a good local copy is not deleted as "removed elsewhere".
+    final transactions = <TransactionModel>[];
+    var unreadable = 0;
+    for (final json in data) {
+      try {
+        transactions.add(
+          TransactionMapper.fromJson(
+            json,
+            categoryId:
+                categoryIdsByRemoteId[json[transactionCategoryRemoteIdColumn]],
+            cipher: cipher,
+          ),
+        );
+      } catch (_) {
+        unreadable++;
+      }
+    }
+    SyncIssues.reportUnreadable('transactions', unreadable);
 
-    await _mergeRemoteTransactions(transactions);
+    await _mergeRemoteTransactions(
+      transactions,
+      serverIds: {
+        for (final json in data)
+          if (json['id'] is String) json['id'] as String,
+      },
+    );
   }
 
   Future<Map<String, int>> _localCategoryIdsByRemoteId() async {
@@ -369,8 +387,9 @@ class TransactionRepository {
   /// resolves those. Local ids are preserved so links held elsewhere (and by
   /// the UI) stay valid.
   Future<void> _mergeRemoteTransactions(
-    List<TransactionModel> remoteTransactions,
-  ) async {
+    List<TransactionModel> remoteTransactions, {
+    Set<String>? serverIds,
+  }) async {
     final locals = await _isar.transactionModels.where().findAll();
     final localByRemoteId = <String, TransactionModel>{
       for (final local in locals)
@@ -410,7 +429,7 @@ class TransactionRepository {
       for (final local in locals)
         if (local.syncState == SyncState.synced &&
             local.remoteId != null &&
-            !remoteIds.contains(local.remoteId))
+            !(serverIds ?? remoteIds).contains(local.remoteId))
           local.id,
     ];
 

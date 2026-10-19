@@ -5,6 +5,7 @@ import '../../../../core/database/isar_service.dart';
 import '../../../../core/network/network_monitor.dart';
 import '../../../../core/network/remote_call.dart';
 import '../../../../core/sync/sync_gate.dart';
+import '../../../../core/sync/sync_issues.dart';
 import '../../../../core/sync/sync_state.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/data/repositories/category_repository.dart';
@@ -284,12 +285,19 @@ class RecurringTransactionRepository {
     };
 
     final templates = <RecurringTransactionModel>[];
+    var unreadable = 0;
     for (final item in data) {
-      final template = await _fromRemoteJson(item);
-      if (template != null) {
-        templates.add(template);
+      try {
+        final template = await _fromRemoteJson(item);
+        if (template != null) {
+          templates.add(template);
+        }
+      } catch (_) {
+        // Still in serverIds, so a good local copy is not deleted.
+        unreadable++;
       }
     }
+    SyncIssues.reportUnreadable('recurring', unreadable);
 
     await _mergeRemoteTemplates(templates, serverIds);
   }
