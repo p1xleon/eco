@@ -177,6 +177,23 @@ class _ChartCard extends StatelessWidget {
   }
 }
 
+/// Stands in for a chart in masked mode: bar heights and slice angles show how
+/// much was spent, which is what masking exists to hide.
+class _MaskedChartCard extends StatelessWidget {
+  final String title;
+
+  const _MaskedChartCard(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return _ChartCard(
+      title: title,
+      subtitle: 'Hidden while amounts are masked.',
+      child: const SizedBox.shrink(),
+    );
+  }
+}
+
 class CategoryDonutCard extends StatelessWidget {
   final List<DonutSlice> slices;
   final TransactionVisibilityState visibility;
@@ -189,6 +206,8 @@ class CategoryDonutCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (visibility.isMasked) return const _MaskedChartCard('Category Share');
+
     final total = slices.fold(0.0, (sum, s) => sum + s.amount);
     final top = slices.first;
     final textTheme = Theme.of(context).textTheme;
@@ -303,6 +322,8 @@ class TrendLineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (visibility.isMasked) return const _MaskedChartCard('Trend');
+
     if (buckets.isEmpty) return const SizedBox.shrink();
 
     final values = [for (final b in buckets) expense ? b.expense : b.income];
@@ -393,6 +414,8 @@ class CashFlowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (visibility.isMasked) return const _MaskedChartCard('Income vs Expense');
+
     final starts = [for (final b in buckets) b.start];
     final formats = _monthlyFormats(starts);
     final dateFormat = weekly ? DateFormat('d MMM') : formats.tooltip;
@@ -502,6 +525,8 @@ class WeekdayBarsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (visibility.isMasked) return const _MaskedChartCard('By Day of Week');
+
     final peak = totals.indexOf(totals.reduce((a, b) => a > b ? a : b));
 
     return _ChartCard(

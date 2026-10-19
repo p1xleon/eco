@@ -201,7 +201,9 @@ class _OverviewView extends StatelessWidget {
               label: 'Savings rate',
               value: savingsRate == null
                   ? '—'
-                  : '${savingsRate.toStringAsFixed(0)}%',
+                  : visibility.displayAmount(
+                      '${savingsRate.toStringAsFixed(0)}%',
+                    ),
               accent: scheme.tertiary,
             ),
           ],
@@ -305,7 +307,7 @@ class _AnalyticsBreakdownView extends StatelessWidget {
       transactions,
       labelFor: (tx) => visibility.displayText(
         tx.paymentMethod,
-        seed: 'payment:${tx.id}:${tx.paymentMethod ?? ''}',
+        seed: 'payment:${tx.paymentMethod ?? ''}',
         placeholder: 'Unspecified',
       ),
       colorFor: (_) => scheme.secondary,
@@ -314,7 +316,7 @@ class _AnalyticsBreakdownView extends StatelessWidget {
       transactions,
       labelFor: (tx) => visibility.displayText(
         tx.payee,
-        seed: 'payee:${tx.id}:${tx.payee ?? ''}',
+        seed: 'payee:${tx.payee ?? ''}',
         placeholder: 'Unspecified',
       ),
       colorFor: (_) => scheme.tertiary,
@@ -330,7 +332,7 @@ class _AnalyticsBreakdownView extends StatelessWidget {
               label: 'Total',
               value: visibility.displayAmount('₹${total.toStringAsFixed(2)}'),
               accent: accent,
-              footer: change == null
+              footer: change == null || visibility.isMasked
                   ? null
                   : '${change >= 0 ? '▲' : '▼'} ${change.abs().toStringAsFixed(0)}% vs previous',
               footerColor: changeIsGood ? scheme.primary : scheme.error,
@@ -733,16 +735,19 @@ class _BreakdownRow extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              minHeight: 10,
-              value: widthFactor,
-              backgroundColor: scheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation(item.color),
+          // Bar lengths are ratios of the real amounts, so masked mode drops them.
+          if (!visibility.isMasked) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                minHeight: 10,
+                value: widthFactor,
+                backgroundColor: scheme.surfaceContainerHighest,
+                valueColor: AlwaysStoppedAnimation(item.color),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
