@@ -30,8 +30,11 @@ class DataKeyNotifier extends StateNotifier<SecretKeyData?> {
     return _store.phraseFor(key);
   }
 
-  Future<void> restoreFromPhrase(String phrase) async {
-    state = await _store.restoreFromPhrase(phrase);
+  Future<void> restoreFromPhrase(
+    String phrase, {
+    Future<void> Function(SecretKeyData candidate)? verify,
+  }) async {
+    state = await _store.restoreFromPhrase(phrase, verify: verify);
   }
 
   String? get recoveryPhrase {

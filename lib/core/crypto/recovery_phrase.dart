@@ -70,6 +70,12 @@ class RecoveryPhrase {
       }
     }
 
+    // The 4 bits left over after 32 bytes were zero when the phrase was written.
+    // Anything else is a typo in the last character.
+    if (bits > 0 && (value & ((1 << bits) - 1)) != 0) {
+      throw const FormatException('The last character of the phrase is wrong');
+    }
+
     return Uint8List.fromList(bytes);
   }
 

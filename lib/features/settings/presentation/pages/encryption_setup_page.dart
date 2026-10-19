@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/crypto/crypto_providers.dart';
 import '../../../../core/crypto/encryption_migration.dart';
+import '../../../../core/crypto/key_check.dart';
 import '../../../../core/database/isar_service.dart';
+import '../../../../core/supabase/supabase_provider.dart';
 import '../../../../core/sync/sync_providers.dart';
 import '../../../../core/sync/sync_state.dart';
 
@@ -43,6 +45,21 @@ class _EncryptionSetupPageState extends ConsumerState<EncryptionSetupPage> {
     });
 
     try {
+      // A second key would leave everything the first one encrypted unreadable.
+      final existing = await fetchEncryptedSample(
+        ref.read(supabaseClientProvider),
+      );
+      if (existing != null) {
+        if (mounted) {
+          setState(
+            () => _error =
+                'Your account already has encrypted data. Enter your existing '
+                'recovery phrase instead of generating a new key.',
+          );
+        }
+        return;
+      }
+
       final phrase = await ref.read(dataKeyProvider.notifier).create();
       if (!mounted) return;
 
@@ -63,7 +80,14 @@ class _EncryptionSetupPageState extends ConsumerState<EncryptionSetupPage> {
     try {
       await ref
           .read(dataKeyProvider.notifier)
-          .restoreFromPhrase(_phraseController.text);
+          .restoreFromPhrase(
+            _phraseController.text,
+            verify: (candidate) => verifyKeyOpensServerData(
+              candidate: candidate,
+              fetchSample: () =>
+                  fetchEncryptedSample(ref.read(supabaseClientProvider)),
+            ),
+          );
       if (!mounted) return;
 
       Navigator.pop(context);
@@ -94,15 +118,26 @@ class _EncryptionSetupPageState extends ConsumerState<EncryptionSetupPage> {
       await syncNow(ref);
       if (!mounted) return;
 
+      // syncNow does not throw when an upload fails, so the pending count is
+      // the only honest signal that the old plaintext is really gone.
+      final stillPending = await ref.read(pendingSyncCountProvider.future);
+      if (!mounted) return;
+
+      final message = stillPending > 0
+          ? 'Encryption is on for new changes, but $stillPending record'
+                '${stillPending == 1 ? ' has' : 's have'} not finished '
+                'uploading. Until they do, they stay readable on the server. '
+                'Check Settings → Sync.'
+          : queued == 0
+          ? 'Encryption is on.'
+          : 'Encryption is on. $queued records were re-uploaded encrypted.';
+
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
           SnackBar(
-            content: Text(
-              queued == 0
-                  ? 'Encryption is on.'
-                  : 'Encryption is on. Re-uploading $queued records.',
-            ),
+            content: Text(message),
+            duration: const Duration(seconds: 6),
           ),
         );
 

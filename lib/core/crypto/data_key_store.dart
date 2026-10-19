@@ -55,7 +55,13 @@ class DataKeyStore {
   /// Throws [FormatException] if the phrase is malformed or the wrong length —
   /// worth surfacing, because the alternative is a key that decrypts nothing
   /// and looks like data corruption.
-  Future<SecretKeyData> restoreFromPhrase(String phrase) async {
+  ///
+  /// [verify] runs before anything is saved, so a phrase that decodes but does
+  /// not open the account's data never replaces the working key.
+  Future<SecretKeyData> restoreFromPhrase(
+    String phrase, {
+    Future<void> Function(SecretKeyData candidate)? verify,
+  }) async {
     final bytes = RecoveryPhrase.decode(phrase);
 
     if (bytes.length != keyLengthBytes) {
@@ -65,9 +71,12 @@ class DataKeyStore {
       );
     }
 
+    final candidate = SecretKeyData(bytes);
+    if (verify != null) await verify(candidate);
+
     await _persist(bytes);
 
-    return SecretKeyData(bytes);
+    return candidate;
   }
 
   String phraseFor(SecretKeyData key) => RecoveryPhrase.encode(key.bytes);
