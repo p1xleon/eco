@@ -1,3 +1,4 @@
+import 'package:eco/core/privacy/transaction_visibility.dart';
 import 'package:eco/features/categories/data/models/category_model.dart';
 import 'package:eco/features/categories/presentation/providers/category_provider.dart';
 import 'package:eco/features/settings/data/models/transaction_preset_model.dart';
@@ -25,7 +26,10 @@ void main() {
 
   setUp(() => repository = _StoredRepository());
 
-  Future<void> pumpPage(WidgetTester tester) async {
+  Future<void> pumpPage(
+    WidgetTester tester, {
+    TransactionVisibilityState visibility = const TransactionVisibilityState(),
+  }) async {
     tester.view.physicalSize = const Size(800, 3000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -45,6 +49,9 @@ void main() {
       ProviderScope(
         overrides: [
           transactionRepositoryProvider.overrideWithValue(repository),
+          transactionVisibilityProvider.overrideWith(
+            (ref) => TransactionVisibilityNotifier(visibility),
+          ),
           categoriesProvider.overrideWith((ref) async => [salary, rent]),
           paymentMethodPresetsProvider.overrideWith(
             (ref) async => <TransactionPresetModel>[],
@@ -129,5 +136,91 @@ void main() {
 
     expect(find.text('Review entries'), findsOneWidget);
     expect(find.textContaining('of 13 ticked'), findsOneWidget);
+  });
+
+  Future<void> fillIncome(WidgetTester tester) async {
+    await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Salary');
+    await tester.enterText(find.widgetWithText(TextField, 'Amount'), '5000');
+    await tester.tap(find.text('Income'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(DropdownButtonFormField<int>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Salary').last);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('a category chosen before switching type is not carried over', (
+    tester,
+  ) async {
+    await pumpPage(tester);
+
+    // Pick the expense category, then switch to Income: the box goes blank.
+    await tester.tap(find.byType(DropdownButtonFormField<int>).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rent').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Income'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Salary');
+    await tester.enterText(find.widgetWithText(TextField, 'Amount'), '5000');
+    await tester.tap(find.text('Review 13 entries'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Enter a title, an amount above zero, and a category.'),
+      findsOneWidget,
+    );
+    expect(find.text('Review entries'), findsNothing);
+  });
+
+  group('duplicates follow the privacy mode', () {
+    TransactionModel storedSalary() {
+      final today = DateTime.now();
+      final first = DateTime(today.year - 1, today.month, today.day);
+
+      return TransactionModel()
+        ..id = 7
+        ..title = 'Salary'
+        ..amount = 5000
+        ..date = first
+        ..type = TransactionType.income
+        ..categoryId = 1
+        ..createdAt = first;
+    }
+
+    testWidgets('a visible match is flagged', (tester) async {
+      repository.stored.add(storedSalary());
+      await pumpPage(tester);
+      await fillIncome(tester);
+
+      await tester.tap(find.text('Review 13 entries'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Already added'), findsOneWidget);
+      expect(find.textContaining('12 of 13 ticked'), findsOneWidget);
+    });
+
+    testWidgets('a hidden match is neither flagged nor revealed', (
+      tester,
+    ) async {
+      final hidden = storedSalary();
+      repository.stored.add(hidden);
+      await pumpPage(
+        tester,
+        visibility: TransactionVisibilityState(
+          mode: TransactionVisibilityMode.invisible,
+          hiddenTransactionKeys: transactionVisibilityKeys(hidden),
+        ),
+      );
+      await fillIncome(tester);
+
+      await tester.tap(find.text('Review 13 entries'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Already added'), findsNothing);
+      expect(find.textContaining('13 of 13 ticked'), findsOneWidget);
+    });
   });
 }

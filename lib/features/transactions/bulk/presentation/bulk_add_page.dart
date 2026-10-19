@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../../core/utils/money.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../../settings/presentation/providers/transaction_preset_provider.dart';
+import '../../data/models/transaction_fingerprint.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/providers/transaction_repository_provider.dart';
 import '../../presentation/widgets/transaction_form_shared.dart';
@@ -83,7 +85,12 @@ class _BulkAddPageState extends ConsumerState<BulkAddPage> {
     final amount = parseAmount(_amount.text);
     final title = _title.text.trim();
 
-    if (title.isEmpty || amount == null || _categoryId == null) {
+    // The category must be one the box is showing: a category picked before
+    // switching Income/Expense is still held but belongs to the other type.
+    final categoryId = categoriesOfType.any((c) => c.id == _categoryId)
+        ? _categoryId
+        : null;
+    if (title.isEmpty || amount == null || categoryId == null) {
       _snack('Enter a title, an amount above zero, and a category.');
       return;
     }
@@ -102,16 +109,20 @@ class _BulkAddPageState extends ConsumerState<BulkAddPage> {
 
     setState(() => _isBusy = true);
     try {
-      final stored = await ref
-          .read(transactionRepositoryProvider)
-          .getLocalAll();
-      final existing = existingFingerprints(stored);
+      // Only what the current privacy mode shows: a hidden transaction must not
+      // announce itself as "Already added".
+      final stored = ref
+          .read(transactionVisibilityProvider)
+          .applyToTransactions(
+            await ref.read(transactionRepositoryProvider).getLocalAll(),
+          );
+      final existing = fingerprintsOf(stored);
 
       final entries = buildBulkEntries(
         dates: dates.dates,
         amount: amount,
         title: title,
-        categoryId: _categoryId!,
+        categoryId: categoryId,
         existing: existing,
         payee: _payee.text.trim(),
         paymentMethod: _payment.text.trim(),
@@ -198,8 +209,10 @@ class _BulkAddPageState extends ConsumerState<BulkAddPage> {
                     ),
                   ],
                   selected: {_type},
-                  onSelectionChanged: (value) =>
-                      setState(() => _type = value.first),
+                  onSelectionChanged: (value) => setState(() {
+                    _type = value.first;
+                    _categoryId = null;
+                  }),
                 ),
                 const SizedBox(height: 14),
                 TextField(

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../data/models/transaction_fingerprint.dart';
 import '../../data/models/transaction_model.dart';
@@ -13,13 +14,22 @@ import '../services/import_parser.dart';
 final importControllerProvider =
     StateNotifierProvider.autoDispose<ImportController, ImportSession>((ref) {
       final repository = ref.read(transactionRepositoryProvider);
-      return ImportController(repository);
+      return ImportController(
+        repository,
+        visibility: () => ref.read(transactionVisibilityProvider),
+      );
     });
 
 class ImportController extends StateNotifier<ImportSession> {
   final TransactionRepository _repository;
 
-  ImportController(this._repository) : super(const ImportSession.initial());
+  final TransactionVisibilityState Function() _visibility;
+
+  ImportController(
+    this._repository, {
+    TransactionVisibilityState Function()? visibility,
+  }) : _visibility = visibility ?? (() => const TransactionVisibilityState()),
+       super(const ImportSession.initial());
 
   /// Rows left out of the last [commit] because the same transaction (same day,
   /// amount and title) was already stored.
@@ -190,24 +200,13 @@ class ImportController extends StateNotifier<ImportSession> {
       // Importing the same file twice must not double everything. Only rows that
       // match something already stored are skipped; two identical rows inside
       // one file are both real (two coffees, same day, same price).
-      final existing = {
-        for (final tx in await _repository.getLocalAll())
-          transactionFingerprint(
-            date: tx.date,
-            amount: tx.amount,
-            title: tx.title,
-          ),
-      };
+      // Compared against what the privacy mode shows, so a hidden transaction
+      // is neither skipped over nor revealed by "Skipped N".
+      final existing = fingerprintsOf(
+        _visibility().applyToTransactions(await _repository.getLocalAll()),
+      );
       final transactions = candidates
-          .where(
-            (tx) => !existing.contains(
-              transactionFingerprint(
-                date: tx.date,
-                amount: tx.amount,
-                title: tx.title,
-              ),
-            ),
-          )
+          .where((tx) => !existing.contains(fingerprintOf(tx)))
           .toList(growable: false);
       lastSkippedDuplicates = candidates.length - transactions.length;
       if (transactions.isEmpty) {

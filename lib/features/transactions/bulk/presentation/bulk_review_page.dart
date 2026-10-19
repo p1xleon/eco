@@ -42,6 +42,9 @@ class _BulkReviewPageState extends ConsumerState<BulkReviewPage> {
   late int _nextKey;
   bool _isSaving = false;
 
+  /// Anything changed since the page opened, so leaving needs a confirmation.
+  bool _dirty = false;
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +60,7 @@ class _BulkReviewPageState extends ConsumerState<BulkReviewPage> {
 
   void _replace(BulkEntry updated) {
     setState(() {
+      _dirty = true;
       _entries = [
         for (final e in _entries)
           if (e.key == updated.key) updated else e,
@@ -73,7 +77,9 @@ class _BulkReviewPageState extends ConsumerState<BulkReviewPage> {
     AsyncValue<List<TransactionPresetModel>> value,
   ) => value.valueOrNull ?? const [];
 
-  Future<void> _edit(BulkEntry entry) async {
+  /// Opens the editor. Returns false when the user cancelled, true when the row
+  /// was saved or removed.
+  Future<bool> _edit(BulkEntry entry) async {
     final result = await BulkEntryEditorSheet.show(
       context,
       entry: entry,
@@ -81,18 +87,21 @@ class _BulkReviewPageState extends ConsumerState<BulkReviewPage> {
       paymentMethodPresets: _presets(ref.read(paymentMethodPresetsProvider)),
       payeePresets: _presets(ref.read(payeePresetsProvider)),
     );
-    if (!mounted || result == null) return;
+    if (!mounted || result == null) return false;
 
     if (result == BulkEntryEditorSheet.removed) {
-      setState(
-        () => _entries = _entries.where((e) => e.key != entry.key).toList(),
-      );
+      setState(() {
+        _dirty = true;
+        _entries = _entries.where((e) => e.key != entry.key).toList();
+      });
     } else if (result is BulkEntry) {
       _replace(recheckDuplicate(result, widget.existing));
     }
+
+    return true;
   }
 
-  void _addRow() {
+  Future<void> _addRow() async {
     final last = _entries.isEmpty ? null : _entries.last;
     final category = last != null && _category(last.categoryId) != null
         ? last.categoryId
@@ -111,12 +120,24 @@ class _BulkReviewPageState extends ConsumerState<BulkReviewPage> {
       ),
       widget.existing,
     );
-    setState(() => _entries = [..._entries, row]..sort(_byDate));
-    _edit(row);
+    final wasDirty = _dirty;
+    setState(() {
+      _dirty = true;
+      _entries = [..._entries, row]..sort(_byDate);
+    });
+
+    // Cancelling the editor means no row was wanted: take the blank one back out.
+    if (!await _edit(row) && mounted) {
+      setState(() {
+        _dirty = wasDirty;
+        _entries = _entries.where((e) => e.key != row.key).toList();
+      });
+    }
   }
 
   void _setAllTicked(bool value) {
     setState(() {
+      _dirty = true;
       _entries = [
         for (final e in _entries) e.copyWith(selected: value && !e.duplicate),
       ];
@@ -137,6 +158,7 @@ class _BulkReviewPageState extends ConsumerState<BulkReviewPage> {
     if (!mounted || patch == null) return;
 
     setState(() {
+      _dirty = true;
       _entries = [
         for (final e in _entries)
           if (e.selected)
@@ -205,95 +227,124 @@ class _BulkReviewPageState extends ConsumerState<BulkReviewPage> {
     final total = selected.fold<double>(0, (sum, e) => sum + e.amount);
     final duplicates = _entries.where((e) => e.duplicate).length;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Review entries'),
-        actions: [
-          IconButton(
-            tooltip: 'Set for ticked entries',
-            icon: const Icon(Icons.tune),
-            onPressed: selected.isEmpty ? null : _setForSelected,
-          ),
-          IconButton(
-            tooltip: selected.length == _entries.length
-                ? 'Untick all'
-                : 'Tick all',
-            icon: Icon(
-              selected.length == _entries.length
-                  ? Icons.deselect
-                  : Icons.select_all,
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+
+        final discard = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Discard changes?'),
+            content: const Text(
+              'Your edits to these entries will be lost and nothing will be saved.',
             ),
-            onPressed: _entries.isEmpty
-                ? null
-                : () => _setAllTicked(selected.length != _entries.length),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Keep editing'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Discard'),
+              ),
+            ],
           ),
-          IconButton(
-            tooltip: 'Add a row',
-            icon: const Icon(Icons.add),
-            onPressed: _addRow,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: scheme.primaryContainer.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(16),
+        );
+        if (discard == true && context.mounted) Navigator.pop(context);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Review entries'),
+          actions: [
+            IconButton(
+              tooltip: 'Set for ticked entries',
+              icon: const Icon(Icons.tune),
+              onPressed: selected.isEmpty ? null : _setForSelected,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${selected.length} of ${_entries.length} ticked · '
-                  '${formatMoney(total)}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                if (duplicates > 0) ...[
-                  const SizedBox(height: 4),
+            IconButton(
+              tooltip: selected.length == _entries.length
+                  ? 'Untick all'
+                  : 'Tick all',
+              icon: Icon(
+                selected.length == _entries.length
+                    ? Icons.deselect
+                    : Icons.select_all,
+              ),
+              onPressed: _entries.isEmpty
+                  ? null
+                  : () => _setAllTicked(selected.length != _entries.length),
+            ),
+            IconButton(
+              tooltip: 'Add a row',
+              icon: const Icon(Icons.add),
+              onPressed: _addRow,
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    '$duplicates already in your list and unticked.',
-                    style: TextStyle(color: scheme.onSurfaceVariant),
+                    '${selected.length} of ${_entries.length} ticked · '
+                    '${formatMoney(total)}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
-                ],
-              ],
-            ),
-          ),
-          Expanded(
-            child: _entries.isEmpty
-                ? const Center(child: Text('No entries. Tap + to add a row.'))
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    itemCount: _entries.length,
-                    itemBuilder: (context, index) => _EntryTile(
-                      entry: _entries[index],
-                      categoryName: _category(_entries[index].categoryId)?.name,
-                      onToggle: (value) =>
-                          _replace(_entries[index].copyWith(selected: value)),
-                      onTap: () => _edit(_entries[index]),
+                  if (duplicates > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '$duplicates already in your list and unticked.',
+                      style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
-                  ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: FilledButton(
-            onPressed: _isSaving || selected.isEmpty ? null : _save,
-            child: _isSaving
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(
-                    'Add ${selected.length} transaction'
-                    '${selected.length == 1 ? '' : 's'}',
-                  ),
+                  ],
+                ],
+              ),
+            ),
+            Expanded(
+              child: _entries.isEmpty
+                  ? const Center(child: Text('No entries. Tap + to add a row.'))
+                  : ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      itemCount: _entries.length,
+                      itemBuilder: (context, index) => _EntryTile(
+                        entry: _entries[index],
+                        categoryName: _category(
+                          _entries[index].categoryId,
+                        )?.name,
+                        onToggle: (value) =>
+                            _replace(_entries[index].copyWith(selected: value)),
+                        onTap: () => _edit(_entries[index]),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: FilledButton(
+              onPressed: _isSaving || selected.isEmpty ? null : _save,
+              child: _isSaving
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(
+                      'Add ${selected.length} transaction'
+                      '${selected.length == 1 ? '' : 's'}',
+                    ),
+            ),
           ),
         ),
       ),

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:eco/core/privacy/transaction_visibility.dart';
 import 'package:eco/features/categories/data/models/category_model.dart';
 import 'package:eco/features/categories/data/repositories/category_repository.dart';
 import 'package:eco/features/transactions/data/repositories/transaction_repository.dart';
@@ -91,4 +92,36 @@ void main() {
     expect(overlapping.lastSkippedDuplicates, 3);
     expect(await repository.getLocalAll(), hasLength(4));
   });
+
+  test(
+    'rows matching a hidden transaction are imported, not revealed',
+    () async {
+      await (await controllerFor(
+        csv,
+      )).commit(skipInvalidDrafts: false, categories: categories);
+      final stored = await repository.getLocalAll();
+
+      final hiding = ImportController(
+        repository,
+        visibility: () => TransactionVisibilityState(
+          mode: TransactionVisibilityMode.invisible,
+          hiddenTransactionKeys: {
+            for (final tx in stored) ...transactionVisibilityKeys(tx),
+          },
+        ),
+      );
+      await hiding.loadFile(
+        fileName: 'bank.csv',
+        bytes: utf8.encode(csv),
+        categories: categories,
+      );
+      final saved = await hiding.commit(
+        skipInvalidDrafts: false,
+        categories: categories,
+      );
+
+      expect(saved, hasLength(3));
+      expect(hiding.lastSkippedDuplicates, 0);
+    },
+  );
 }

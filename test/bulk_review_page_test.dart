@@ -188,4 +188,68 @@ void main() {
     expect(find.text('1 entry needs fixing first.'), findsOneWidget);
     expect(repository.saved, isEmpty);
   });
+
+  group('leaving the page', () {
+    testWidgets('with no edits it closes without asking', (tester) async {
+      await pumpReview(tester, threeMonths());
+
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Review entries'), findsNothing);
+      expect(find.text('Discard changes?'), findsNothing);
+    });
+
+    testWidgets('after an edit it asks, and Keep editing stays', (
+      tester,
+    ) async {
+      await pumpReview(tester, threeMonths());
+
+      await tester.tap(find.byType(Checkbox).first); // untick one row
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Discard changes?'), findsOneWidget);
+
+      await tester.tap(find.text('Keep editing'));
+      await tester.pumpAndSettle();
+      expect(find.text('Review entries'), findsOneWidget);
+      expect(find.textContaining('2 of 3 ticked'), findsOneWidget);
+    });
+
+    testWidgets('Discard leaves and saves nothing', (tester) async {
+      await pumpReview(tester, threeMonths());
+
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Review entries'), findsNothing);
+      expect(repository.saved, isEmpty);
+    });
+  });
+
+  testWidgets('cancelling a newly added row removes the blank row', (
+    tester,
+  ) async {
+    await pumpReview(tester, threeMonths());
+
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit entry'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('3 of 3 ticked'), findsOneWidget);
+
+    // Nothing was changed, so leaving does not ask either.
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Discard changes?'), findsNothing);
+  });
 }

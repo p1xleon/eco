@@ -75,12 +75,6 @@ class BulkEntry {
   }
 }
 
-/// Fingerprints of what is already stored, for flagging duplicates.
-Set<String> existingFingerprints(Iterable<TransactionModel> stored) => {
-  for (final tx in stored)
-    transactionFingerprint(date: tx.date, amount: tx.amount, title: tx.title),
-};
-
 /// One entry per date, sharing the same details. Rows that match something
 /// already stored start unticked, so a partly entered year only adds what is
 /// missing.
