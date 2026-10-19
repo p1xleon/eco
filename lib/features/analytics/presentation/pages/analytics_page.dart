@@ -6,6 +6,9 @@ import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../../transactions/data/models/transaction_model.dart';
 import '../../../transactions/presentation/providers/transaction_provider.dart';
+import '../../domain/analytics_aggregation.dart';
+import '../providers/analytics_period_provider.dart';
+import '../widgets/analytics_charts.dart';
 
 class AnalyticsPage extends ConsumerWidget {
   const AnalyticsPage({super.key});
@@ -15,14 +18,17 @@ class AnalyticsPage extends ConsumerWidget {
     final visibility = ref.watch(transactionVisibilityProvider);
     final transactionsAsync = ref.watch(visibleTransactionsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
+    final period = ref.watch(analyticsPeriodProvider);
+    final now = DateTime.now();
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Analytics'),
           bottom: const TabBar(
             tabs: [
+              Tab(text: 'Overview'),
               Tab(text: 'Expense'),
               Tab(text: 'Income'),
             ],
@@ -34,63 +40,203 @@ class AnalyticsPage extends ConsumerWidget {
                 message:
                     'Invisible mode hides dashboard insights until you add new transactions in this mode.',
               )
-            : transactionsAsync.when(
-                data: (transactions) {
-                  return categoriesAsync.when(
-                    data: (categories) {
-                      final categoriesById = {
-                        for (final category in categories)
-                          category.id: category,
-                      };
+            : Column(
+                children: [
+                  const _PeriodSelector(),
+                  Expanded(
+                    child: transactionsAsync.when(
+                      data: (transactions) {
+                        return categoriesAsync.when(
+                          data: (categories) {
+                            final categoriesById = {
+                              for (final category in categories)
+                                category.id: category,
+                            };
+                            final current = inRange(
+                              transactions,
+                              period.range(now),
+                            );
+                            final hasPrevious =
+                                period.previousRange(now) != null;
+                            final previous = inRange(
+                              transactions,
+                              period.previousRange(now),
+                            );
 
-                      return TabBarView(
-                        children: [
-                          _AnalyticsBreakdownView(
-                            type: TransactionType.expense,
-                            visibility: visibility,
-                            transactions: transactions
-                                .where(
-                                  (tx) => tx.type == TransactionType.expense,
-                                )
-                                .toList(),
-                            categoriesById: categoriesById,
-                          ),
-                          _AnalyticsBreakdownView(
-                            type: TransactionType.income,
-                            visibility: visibility,
-                            transactions: transactions
-                                .where(
-                                  (tx) => tx.type == TransactionType.income,
-                                )
-                                .toList(),
-                            categoriesById: categoriesById,
-                          ),
-                        ],
-                      );
-                    },
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => Center(child: Text(e.toString())),
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text(e.toString())),
+                            Widget breakdown(TransactionType type) {
+                              bool isType(TransactionModel tx) =>
+                                  tx.type == type;
+                              return _AnalyticsBreakdownView(
+                                type: type,
+                                period: period,
+                                now: now,
+                                visibility: visibility,
+                                transactions: current.where(isType).toList(),
+                                previousTotal: hasPrevious
+                                    ? sumAmounts(previous.where(isType))
+                                    : null,
+                                categoriesById: categoriesById,
+                              );
+                            }
+
+                            return TabBarView(
+                              children: [
+                                _OverviewView(
+                                  period: period,
+                                  now: now,
+                                  visibility: visibility,
+                                  transactions: current,
+                                ),
+                                breakdown(TransactionType.expense),
+                                breakdown(TransactionType.income),
+                              ],
+                            );
+                          },
+                          loading: () =>
+                              const Center(child: CircularProgressIndicator()),
+                          error: (e, _) => Center(child: Text(e.toString())),
+                        );
+                      },
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Center(child: Text(e.toString())),
+                    ),
+                  ),
+                ],
               ),
       ),
     );
   }
 }
 
-class _AnalyticsBreakdownView extends StatelessWidget {
-  final TransactionType type;
+class _PeriodSelector extends ConsumerWidget {
+  const _PeriodSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(analyticsPeriodProvider);
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          for (final period in AnalyticsPeriod.values)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(period.label),
+                selected: period == selected,
+                onSelected: (_) =>
+                    ref.read(analyticsPeriodProvider.notifier).state = period,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverviewView extends StatelessWidget {
+  final AnalyticsPeriod period;
+  final DateTime now;
   final TransactionVisibilityState visibility;
   final List<TransactionModel> transactions;
+
+  const _OverviewView({
+    required this.period,
+    required this.now,
+    required this.visibility,
+    required this.transactions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    if (transactions.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _AnalyticsHeroCard(
+            title: 'Overview',
+            subtitle: 'No transactions for ${period.label.toLowerCase()}.',
+            accent: scheme.primary,
+          ),
+        ],
+      );
+    }
+
+    final income = sumAmounts(
+      transactions.where((tx) => tx.type == TransactionType.income),
+    );
+    final expense = sumAmounts(
+      transactions.where((tx) => tx.type == TransactionType.expense),
+    );
+    final net = income - expense;
+    final savingsRate = income == 0 ? null : net / income * 100;
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      children: [
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _AnalyticsStatCard(
+              label: 'Income',
+              value: visibility.displayAmount('₹${income.toStringAsFixed(2)}'),
+              accent: scheme.primary,
+            ),
+            _AnalyticsStatCard(
+              label: 'Expense',
+              value: visibility.displayAmount('₹${expense.toStringAsFixed(2)}'),
+              accent: scheme.error,
+            ),
+            _AnalyticsStatCard(
+              label: 'Net',
+              value: visibility.displayAmount('₹${net.toStringAsFixed(2)}'),
+              accent: net >= 0 ? scheme.primary : scheme.error,
+            ),
+            _AnalyticsStatCard(
+              label: 'Savings rate',
+              value: savingsRate == null
+                  ? '—'
+                  : '${savingsRate.toStringAsFixed(0)}%',
+              accent: scheme.tertiary,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        CashFlowCard(
+          buckets: buildBuckets(transactions, period, now),
+          daily: period.isDaily,
+          incomeColor: scheme.primary,
+          expenseColor: scheme.error,
+          visibility: visibility,
+        ),
+      ],
+    );
+  }
+}
+
+class _AnalyticsBreakdownView extends StatelessWidget {
+  final TransactionType type;
+  final AnalyticsPeriod period;
+  final DateTime now;
+  final TransactionVisibilityState visibility;
+  final List<TransactionModel> transactions;
+  final double? previousTotal;
   final Map<int, CategoryModel> categoriesById;
 
   const _AnalyticsBreakdownView({
     required this.type,
+    required this.period,
+    required this.now,
     required this.visibility,
     required this.transactions,
+    required this.previousTotal,
     required this.categoriesById,
   });
 
@@ -109,7 +255,7 @@ class _AnalyticsBreakdownView extends StatelessWidget {
         children: [
           _AnalyticsHeroCard(
             title: '$label Analytics',
-            subtitle: 'No $label data available yet.',
+            subtitle: 'No $label data for ${period.label.toLowerCase()}.',
             accent: accent,
           ),
         ],
@@ -126,8 +272,9 @@ class _AnalyticsBreakdownView extends StatelessWidget {
     }
 
     final average = total / transactions.length;
-    final categoryItems = _buildBreakdownItems(
+    final allCategoryItems = _buildBreakdownItems(
       transactions,
+      limit: null,
       labelFor: (tx) => visibility.displayCategory(
         categoriesById[tx.categoryId]?.name ?? 'Unknown',
         seed: 'category:${tx.categoryId}',
@@ -137,6 +284,23 @@ class _AnalyticsBreakdownView extends StatelessWidget {
         return category != null ? Color(category.color) : accent;
       },
     );
+    final categoryItems = allCategoryItems.take(6).toList();
+    final donutSlices = [
+      for (final item in allCategoryItems.take(5))
+        DonutSlice(label: item.label, amount: item.amount, color: item.color),
+      if (allCategoryItems.length > 5)
+        DonutSlice(
+          label: 'Other',
+          amount: allCategoryItems.skip(5).fold(0.0, (s, i) => s + i.amount),
+          color: scheme.outline,
+        ),
+    ];
+    final change = previousTotal == null
+        ? null
+        : percentChange(total, previousTotal!);
+    final isExpense = type == TransactionType.expense;
+    final changeIsGood =
+        change != null && (isExpense ? change <= 0 : change >= 0);
     final paymentMethodItems = _buildBreakdownItems(
       transactions,
       labelFor: (tx) => visibility.displayText(
@@ -176,6 +340,10 @@ class _AnalyticsBreakdownView extends StatelessWidget {
               label: 'Total',
               value: visibility.displayAmount('₹${total.toStringAsFixed(2)}'),
               accent: accent,
+              footer: change == null
+                  ? null
+                  : '${change >= 0 ? '▲' : '▼'} ${change.abs().toStringAsFixed(0)}% vs previous',
+              footerColor: changeIsGood ? scheme.primary : scheme.error,
             ),
             _AnalyticsStatCard(
               label: 'Average',
@@ -199,6 +367,22 @@ class _AnalyticsBreakdownView extends StatelessWidget {
             '₹${highest.amount.toStringAsFixed(2)}',
           ),
           accent: accent,
+        ),
+        const SizedBox(height: 16),
+        CategoryDonutCard(slices: donutSlices, visibility: visibility),
+        const SizedBox(height: 16),
+        TrendLineCard(
+          buckets: buildBuckets(transactions, period, now),
+          daily: period.isDaily,
+          expense: isExpense,
+          color: accent,
+          visibility: visibility,
+        ),
+        const SizedBox(height: 16),
+        WeekdayBarsCard(
+          totals: weekdayTotals(transactions),
+          color: accent,
+          visibility: visibility,
         ),
         const SizedBox(height: 16),
         _BreakdownSection(
@@ -231,6 +415,7 @@ class _AnalyticsBreakdownView extends StatelessWidget {
     List<TransactionModel> source, {
     required String Function(TransactionModel tx) labelFor,
     required Color Function(TransactionModel tx) colorFor,
+    int? limit = 6,
   }) {
     final totals = <String, double>{};
     final colors = <String, Color>{};
@@ -253,7 +438,7 @@ class _AnalyticsBreakdownView extends StatelessWidget {
             .toList()
           ..sort((a, b) => b.amount.compareTo(a.amount));
 
-    return items.take(6).toList();
+    return limit == null ? items : items.take(limit).toList();
   }
 }
 
@@ -309,11 +494,15 @@ class _AnalyticsStatCard extends StatelessWidget {
   final String label;
   final String value;
   final Color accent;
+  final String? footer;
+  final Color? footerColor;
 
   const _AnalyticsStatCard({
     required this.label,
     required this.value,
     required this.accent,
+    this.footer,
+    this.footerColor,
   });
 
   @override
@@ -340,6 +529,18 @@ class _AnalyticsStatCard extends StatelessWidget {
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
+            if (footer != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  footer!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: footerColor,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
