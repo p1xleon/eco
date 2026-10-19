@@ -49,3 +49,23 @@ bool isNetworkFailure(Object error) {
       text.contains('network is unreachable') ||
       text.contains('no address associated with hostname');
 }
+
+/// The server saying "a row with this id already exists" (Postgres 23505).
+bool isDuplicateKey(Object error) {
+  final text = error.toString().toLowerCase();
+  return text.contains('23505') || text.contains('duplicate key');
+}
+
+/// An update or delete that matched no row (PostgREST PGRST116): the row was
+/// removed elsewhere.
+bool isRowNotFound(Object error) {
+  return error.toString().toLowerCase().contains('pgrst116');
+}
+
+/// Failures that say nothing about the record itself: an expired session or a
+/// server-side outage. Charging these to a record's retry budget would block
+/// healthy records after a few bad minutes.
+bool isTransientServerError(Object error) {
+  final text = error.toString().toLowerCase();
+  return text.contains('jwt expired') || RegExp(r'code: 5\d\d').hasMatch(text);
+}

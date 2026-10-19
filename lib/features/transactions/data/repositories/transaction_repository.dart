@@ -1,4 +1,5 @@
 import 'package:isar_community/isar.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/crypto/field_cipher.dart';
 import '../../../../core/database/isar_service.dart';
@@ -33,6 +34,8 @@ class TransactionRepository {
   /// the user sets up a key, in which case rows move in plaintext exactly as
   /// they did before — see [TransactionMapper.toJson].
   final FieldCipher? cipher;
+
+  static const _uuid = Uuid();
 
   TransactionRepository(
     this.remote, {
@@ -121,8 +124,16 @@ class TransactionRepository {
   }
 
   Future<TransactionModel> update(TransactionModel tx) async {
-    // An edit to a record the server has never seen is still a create.
-    final isCreate = tx.remoteId == null;
+    await _isar.writeTxn(() async {
+      // A screen can hold a copy loaded before the first upload finished; keep
+      // the server id that upload assigned instead of writing null over it.
+      tx.remoteId ??= (await _isar.transactionModels.get(tx.id))?.remoteId;
+    });
+
+    // Still a create until the server has accepted the row, even though the id
+    // was reserved before the first attempt.
+    final isCreate =
+        tx.remoteId == null || tx.syncState == SyncState.pendingCreate;
 
     tx.syncState = isCreate ? SyncState.pendingCreate : SyncState.pendingUpdate;
     tx.localUpdatedAt = DateTime.now();
@@ -238,36 +249,106 @@ class TransactionRepository {
   }
 
   /// Charges a failed push against the record's retry budget, unless it failed
-  /// because the device could not reach the server — that is not the record's
-  /// fault and it keeps its budget.
+  /// because the device could not reach the server or the server is having a bad
+  /// moment — neither is the record's fault, and it keeps its budget.
   Future<void> _recordPushFailure(TransactionModel local, Object error) async {
-    if (isNetworkFailure(error)) return;
-
-    local.syncAttempts += 1;
-    local.lastSyncError = describeSyncError(error);
+    if (isNetworkFailure(error) || isTransientServerError(error)) return;
 
     await _isar.writeTxn(() async {
-      await _isar.transactionModels.put(local);
+      // Re-read: the user may have edited the record while the push was running.
+      final current = await _isar.transactionModels.get(local.id);
+      if (current == null) return;
+
+      current.syncAttempts += 1;
+      current.lastSyncError = describeSyncError(error);
+      await _isar.transactionModels.put(current);
+
+      local.syncAttempts = current.syncAttempts;
+      local.lastSyncError = current.lastSyncError;
     });
   }
 
+  /// Gives the record its server id before the first upload attempt and keeps
+  /// it across retries. If the server saves the row but the reply is lost, the
+  /// retry sends the same id, so it can never insert a second copy.
+  Future<bool> _reserveRemoteId(TransactionModel local) async {
+    var found = true;
+
+    await _isar.writeTxn(() async {
+      final current = await _isar.transactionModels.get(local.id);
+      if (current == null) {
+        found = false;
+        return;
+      }
+
+      current.remoteId ??= _uuid.v4();
+      local.remoteId = current.remoteId;
+      await _isar.transactionModels.put(current);
+    });
+
+    return found;
+  }
+
+  /// Records a push the server accepted, without clobbering a newer local edit.
+  ///
+  /// The stored record is re-read: if it was edited while the request was in
+  /// flight it stays pending (now as an update, since the server has the row),
+  /// and a delete made meanwhile stays a delete.
+  Future<bool> _finishPush(
+    TransactionModel local,
+    TransactionModel saved,
+  ) async {
+    await _isar.writeTxn(() async {
+      final current = await _isar.transactionModels.get(local.id);
+      if (current == null) return;
+
+      current.remoteId = saved.remoteId ?? current.remoteId;
+      current.updatedAt = saved.updatedAt ?? current.updatedAt;
+
+      if (current.syncState != SyncState.pendingDelete) {
+        final unchanged = _sameMoment(
+          current.localUpdatedAt,
+          local.localUpdatedAt,
+        );
+        current.syncState = unchanged
+            ? SyncState.synced
+            : SyncState.pendingUpdate;
+        if (unchanged) _resetRetryBudget(current);
+      }
+      await _isar.transactionModels.put(current);
+
+      local
+        ..remoteId = current.remoteId
+        ..updatedAt = current.updatedAt
+        ..syncState = current.syncState
+        ..syncAttempts = current.syncAttempts
+        ..lastSyncError = current.lastSyncError;
+    });
+
+    return true;
+  }
+
+  bool _sameMoment(DateTime? a, DateTime? b) =>
+      a == null || b == null ? a == b : a.isAtSameMomentAs(b);
+
   Future<bool> _pushCreate(TransactionModel local) async {
     try {
-      final saved = await uploadTransaction(local);
+      if (!await _reserveRemoteId(local)) return false;
+
+      TransactionModel saved;
+      try {
+        saved = await uploadTransaction(local);
+      } catch (error) {
+        if (!isDuplicateKey(error)) rethrow;
+        // An earlier attempt did reach the server: converge it on the current content.
+        saved = await updateRemoteTransaction(local);
+      }
       if (saved.remoteId == null) {
         // No server identity came back, so the record is still local only.
         return false;
       }
 
-      local.remoteId = saved.remoteId;
-      local.updatedAt = saved.updatedAt ?? local.updatedAt;
-      local.syncState = SyncState.synced;
-      _resetRetryBudget(local);
-
-      await _isar.writeTxn(() async {
-        await _isar.transactionModels.put(local);
-      });
-      return true;
+      return _finishPush(local, saved);
     } catch (error) {
       // Stays pending and is retried on the next sync.
       await _recordPushFailure(local, error);
@@ -282,15 +363,21 @@ class TransactionRepository {
 
     try {
       final saved = await updateRemoteTransaction(local);
-      local.updatedAt = saved.updatedAt ?? local.updatedAt;
-      local.syncState = SyncState.synced;
-      _resetRetryBudget(local);
-
-      await _isar.writeTxn(() async {
-        await _isar.transactionModels.put(local);
-      });
-      return true;
+      return _finishPush(local, saved);
     } catch (error) {
+      if (isRowNotFound(error)) {
+        // Deleted on another device while this edit was waiting. The edit wins:
+        // put the row back under the same id.
+        await _isar.writeTxn(() async {
+          final current = await _isar.transactionModels.get(local.id);
+          if (current == null) return;
+          current.syncState = SyncState.pendingCreate;
+          await _isar.transactionModels.put(current);
+          local.syncState = SyncState.pendingCreate;
+        });
+        return _pushCreate(local);
+      }
+
       await _recordPushFailure(local, error);
       return false;
     }
@@ -451,7 +538,9 @@ class TransactionRepository {
       return tx;
     }
 
-    final data = await remote.addTransaction(await _toRemoteJson(tx, user.id));
+    final data = await remote.addTransaction(
+      await _toRemoteJson(tx, user.id, includeId: true),
+    );
     return _fromRemoteJson(data, fallback: tx);
   }
 
@@ -470,12 +559,14 @@ class TransactionRepository {
 
   Future<Map<String, dynamic>> _toRemoteJson(
     TransactionModel tx,
-    String userId,
-  ) async {
+    String userId, {
+    bool includeId = false,
+  }) async {
     final category = await _isar.categoryModels.get(tx.categoryId);
 
     return tx.toJson(
       userId,
+      includeId: includeId,
       categoryRemoteId: category?.remoteId,
       cipher: cipher,
     );

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/privacy/transaction_visibility.dart';
+import '../../../../core/sync/sync_state.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../../recurring/presentation/providers/recurring_transaction_provider.dart';
@@ -295,7 +296,7 @@ class _TransactionDetailsPageState
                       _DetailRow(
                         icon: Icons.sync_outlined,
                         label: 'Sync Status',
-                        value: _transaction.remoteId == null
+                        value: _transaction.syncState.isPending
                             ? 'Local only'
                             : 'Synced',
                       ),

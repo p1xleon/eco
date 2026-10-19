@@ -27,6 +27,13 @@ class FakeTransactionRemoteSource implements TransactionRemoteSource {
   /// but refusing. Unlike an unreachable server this burns the retry budget.
   bool rejectsWrites = false;
 
+  /// The next insert is saved, but its reply never reaches the client.
+  bool loseNextReply = false;
+
+  /// Runs after an insert is stored and before the reply, to model a user
+  /// action that lands while the request is in flight.
+  Future<void> Function()? onInsert;
+
   int _nextId = 1;
 
   @override
@@ -53,9 +60,24 @@ class FakeTransactionRemoteSource implements TransactionRemoteSource {
   Future<Map<String, dynamic>> addTransaction(Map<String, dynamic> data) async {
     _guardWrite();
 
-    final id = 'remote-${_nextId++}';
+    // Like the real table: a client-supplied id is honoured, and reusing one is
+    // rejected as a duplicate key.
+    final id = (data['id'] as String?) ?? 'remote-${_nextId++}';
+    if (rows.containsKey(id)) {
+      throw const PostgrestException(
+        message: 'duplicate key value violates unique constraint',
+        code: '23505',
+      );
+    }
+
     final row = {...data, 'id': id};
     rows[id] = row;
+    await onInsert?.call();
+
+    if (loseNextReply) {
+      loseNextReply = false;
+      throw _unreachable();
+    }
     return row;
   }
 
@@ -67,7 +89,11 @@ class FakeTransactionRemoteSource implements TransactionRemoteSource {
     _guard();
 
     if (!rows.containsKey(id)) {
-      throw StateError('No transaction $id');
+      // What PostgREST answers when `.single()` matches no row.
+      throw const PostgrestException(
+        message: 'JSON object requested, multiple (or no) rows returned',
+        code: 'PGRST116',
+      );
     }
 
     final row = {...data, 'id': id};
