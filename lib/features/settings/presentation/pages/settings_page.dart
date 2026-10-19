@@ -23,6 +23,7 @@ import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../../../recurring/domain/services/recurring_recovery_service.dart';
 import '../../../recurring/presentation/pages/recurring_transactions_page.dart';
 import '../../../recurring/presentation/providers/recurring_transaction_provider.dart';
+import '../../../transactions/data/providers/transaction_remote_provider.dart';
 import '../../../transactions/import/pages/import_transactions_page.dart';
 import '../../../transactions/presentation/providers/transaction_provider.dart';
 import '../providers/transaction_preset_provider.dart';
@@ -591,7 +592,26 @@ class _BackupSectionState extends ConsumerState<_BackupSection> {
       final payload = await service.read(bytes);
       if (!mounted) return;
 
-      final confirmed = await _confirmRestore(payload);
+      // Restore re-uploads everything as new rows, so it is only safe against an
+      // account with nothing on the server. Refuse rather than rely on a warning.
+      final bool serverHasData;
+      try {
+        serverHasData = await ref
+            .read(transactionRemoteSourceProvider)
+            .hasAnyTransactions();
+      } catch (_) {
+        _report(
+          'Could not check the server. Connect to the internet and try again.',
+        );
+        return;
+      }
+      if (serverHasData) {
+        await _explainRestoreRefused();
+        return;
+      }
+
+      final pending = ref.read(pendingSyncCountProvider).valueOrNull ?? 0;
+      final confirmed = await _confirmRestore(payload, pending: pending);
       if (!confirmed || !mounted) return;
 
       await service.restore(payload);
@@ -609,7 +629,31 @@ class _BackupSectionState extends ConsumerState<_BackupSection> {
     }
   }
 
-  Future<bool> _confirmRestore(BackupPayload payload) async {
+  Future<void> _explainRestoreRefused() {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Server already has data'),
+        content: const Text(
+          'Restoring uploads everything as new records, so against an account '
+          'that still has its data every transaction would appear twice. '
+          'Restore into an empty account, or delete the data on the server '
+          'first.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _confirmRestore(
+    BackupPayload payload, {
+    required int pending,
+  }) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -620,8 +664,8 @@ class _BackupSectionState extends ConsumerState<_BackupSection> {
           '${payload.categories.length} categories, '
           '${payload.recurring.length} recurring templates.\n\n'
           'This replaces everything on this device and re-uploads it as new '
-          'records. Use it when the server data is gone — against a server that '
-          'still has your data it will create duplicates.',
+          'records.${pending > 0 ? '\n\n$pending change${pending == 1 ? '' : 's'} on this device '
+                    'that have not uploaded yet will be lost.' : ''}',
         ),
         actions: [
           TextButton(

@@ -79,6 +79,12 @@ class FakeTransactionRemoteSource implements TransactionRemoteSource {
   int fetchCount = 0;
 
   @override
+  Future<bool> hasAnyTransactions() async {
+    _guard();
+    return rows.isNotEmpty;
+  }
+
+  @override
   Future<List<Map<String, dynamic>>> fetchTransactions() async {
     _guard();
     fetchCount++;

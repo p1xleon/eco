@@ -118,6 +118,20 @@ class TransactionRemoteSource {
     return _categoryRemoteIdFallback.send(data, send);
   }
 
+  /// Whether this account already has transactions on the server. A restore
+  /// re-uploads everything as new rows, so it must only run against an empty one.
+  Future<bool> hasAnyTransactions() async {
+    final rows = await remoteCall(
+      () async => await client
+          .from('transactions')
+          .select('id')
+          .eq('user_id', _currentUserId)
+          .limit(1),
+    );
+
+    return rows.isNotEmpty;
+  }
+
   Future<List<Map<String, dynamic>>> fetchTransactions() async {
     final userId = _currentUserId;
     final all = <Map<String, dynamic>>[];
