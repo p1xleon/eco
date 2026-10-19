@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/privacy/transaction_visibility.dart';
+import '../../../../core/utils/money.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../../recurring/data/models/recurring_transaction_model.dart';
@@ -80,13 +81,15 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
 
   Future<void> _save(List<CategoryModel> categories) async {
     final title = _titleController.text.trim();
-    final amount = double.tryParse(_amountController.text);
+    final amount = parseAmount(_amountController.text);
     final paymentMethod = _paymentMethodController.text.trim();
     final payee = _payeeController.text.trim();
 
     if (title.isEmpty || amount == null || _categoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter title, amount, and category.')),
+        const SnackBar(
+          content: Text('Enter a title, an amount above zero, and a category.'),
+        ),
       );
       return;
     }

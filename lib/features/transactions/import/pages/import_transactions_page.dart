@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/privacy/transaction_visibility.dart';
+import '../../../../core/utils/money.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../../recurring/data/models/recurring_transaction_model.dart';
@@ -426,10 +427,14 @@ class _ImportTransactionsPageState
       if (!mounted) {
         return;
       }
+      final skipped = ref
+          .read(importControllerProvider.notifier)
+          .lastSkippedDuplicates;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Imported ${saved.length} transaction${saved.length == 1 ? '' : 's'}.',
+            'Imported ${saved.length} transaction${saved.length == 1 ? '' : 's'}.'
+            '${skipped > 0 ? ' Skipped $skipped already in your list.' : ''}',
           ),
         ),
       );
@@ -1278,7 +1283,7 @@ class _DraftEditableCardState extends State<_DraftEditableCard> {
 
   void _applyAmount() {
     final value = _amountController.text.trim();
-    final parsed = double.tryParse(value);
+    final parsed = parseAmount(value);
     _emitUpdate(
       widget.draft.copyWith(amount: parsed, clearAmount: parsed == null),
     );

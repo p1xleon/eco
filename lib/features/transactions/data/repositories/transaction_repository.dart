@@ -195,6 +195,9 @@ class TransactionRepository {
     }
   }
 
+  /// What is stored on this device, without syncing first.
+  Future<List<TransactionModel>> getLocalAll() => _getLocalTransactions();
+
   /// The instance of a recurring template already recorded for [day], if any.
   ///
   /// Matches by the server id when the instance carries one, and by this

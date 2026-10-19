@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/privacy/transaction_visibility.dart';
+import '../../../../core/utils/money.dart';
 import '../../../../core/sync/sync_providers.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
@@ -407,7 +408,7 @@ class _ConfirmRecurringAmountDialogState
         ),
         FilledButton(
           onPressed: () {
-            final amount = double.tryParse(_controller.text.trim());
+            final amount = parseAmount(_controller.text);
             if (amount == null || amount <= 0) {
               setState(() {
                 _errorText = 'Enter a valid amount';
@@ -908,7 +909,7 @@ class _RecurringTemplateEditorSheetState
     final defaultAmountText = _amountController.text.trim();
     final defaultAmount = defaultAmountText.isEmpty
         ? null
-        : double.tryParse(defaultAmountText);
+        : parseAmount(defaultAmountText);
 
     if (title.isEmpty ||
         _categoryId == null ||

@@ -122,6 +122,11 @@ ImportTransactionDraft validateDraft(ImportTransactionDraft draft) {
 
   if (draft.date == null) {
     errors.add('Date is required and must be valid, for example May 14, 2025.');
+  } else if (draft.date!.year < 2000 ||
+      draft.date!.year > DateTime.now().year + 1) {
+    errors.add(
+      'Date looks wrong (year ${draft.date!.year}). Check the date format in the file.',
+    );
   }
 
   if (draft.categoryId == null) {
@@ -248,21 +253,36 @@ double? _parseAmount(String? raw) {
   final isNegative =
       trimmed.startsWith('-') ||
       (trimmed.startsWith('(') && trimmed.endsWith(')'));
-  final cleaned = trimmed
-      .replaceAll(RegExp(r'[\s,]'), '')
+  var cleaned = trimmed
+      .replaceAll(RegExp(r'\s'), '')
       .replaceAll('₹', '')
       .replaceAll('\$', '')
       .replaceAll('€', '')
       .replaceAll('£', '')
       .replaceAll('(', '')
       .replaceAll(')', '')
-      .replaceAll('+', '');
+      .replaceAll('+', '')
+      .replaceAll('-', '');
+
+  // Which mark is the decimal point? Whichever comes last, unless the last
+  // comma sits before exactly three digits with no dot at all ("1,234",
+  // "1,00,000"), which is a thousands separator.
+  final lastComma = cleaned.lastIndexOf(',');
+  final lastDot = cleaned.lastIndexOf('.');
+  final commaIsDecimal =
+      lastComma > lastDot &&
+      (cleaned.contains('.') || cleaned.length - lastComma - 1 != 3);
+  cleaned = commaIsDecimal
+      ? cleaned.replaceAll('.', '').replaceAll(',', '.')
+      : cleaned.replaceAll(',', '');
+
   final value = double.tryParse(cleaned);
-  if (value == null) {
+  if (value == null || !value.isFinite || value == 0) {
     return null;
   }
 
-  return isNegative ? -value.abs() : value.abs();
+  final cents = (value.abs() * 100).round() / 100;
+  return isNegative ? -cents : cents;
 }
 
 DateTime? _parseDate(String? raw) {
@@ -276,6 +296,26 @@ DateTime? _parseDate(String? raw) {
     return direct;
   }
 
+  final parsed = _parseWithPatterns(value);
+  return parsed == null ? null : _expandTwoDigitYear(parsed);
+}
+
+/// "14/05/25" parses as the year 25 AD. Read it as 2025, or 1999 for "99".
+DateTime _expandTwoDigitYear(DateTime date) {
+  if (date.year >= 100) return date;
+
+  final currentYear = DateTime.now().year;
+  final century = currentYear - currentYear % 100;
+  final year = date.year + century;
+
+  return DateTime(
+    year > currentYear + 1 ? year - 100 : year,
+    date.month,
+    date.day,
+  );
+}
+
+DateTime? _parseWithPatterns(String value) {
   const patterns = [
     'MMMM d, yyyy',
     'MMMM dd, yyyy',

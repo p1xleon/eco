@@ -20,6 +20,10 @@ class ImportController extends StateNotifier<ImportSession> {
 
   ImportController(this._repository) : super(const ImportSession.initial());
 
+  /// Rows left out of the last [commit] because the same transaction (same day,
+  /// amount and title) was already stored.
+  int lastSkippedDuplicates = 0;
+
   Future<void> loadFile({
     required String fileName,
     required List<int> bytes,
@@ -178,9 +182,24 @@ class ImportController extends StateNotifier<ImportSession> {
       final categoriesById = {
         for (final category in categories) category.id: category,
       };
-      final transactions = draftsToCommit
+      final candidates = draftsToCommit
           .map((draft) => _toTransactionModel(draft, categoriesById))
           .toList(growable: false);
+
+      // Importing the same file twice must not double everything. Only rows that
+      // match something already stored are skipped; two identical rows inside
+      // one file are both real (two coffees, same day, same price).
+      final existing = {
+        for (final tx in await _repository.getLocalAll()) _fingerprint(tx),
+      };
+      final transactions = candidates
+          .where((tx) => !existing.contains(_fingerprint(tx)))
+          .toList(growable: false);
+      lastSkippedDuplicates = candidates.length - transactions.length;
+      if (transactions.isEmpty) {
+        throw StateError('Every row is already in your transactions.');
+      }
+
       final saved = await _repository.addAll(transactions);
       state = state.copyWith(isLoading: false);
       return saved;
@@ -229,6 +248,11 @@ class ImportController extends StateNotifier<ImportSession> {
       ..updatedAt = null;
 
     return transaction;
+  }
+
+  String _fingerprint(TransactionModel tx) {
+    final day = '${tx.date.year}-${tx.date.month}-${tx.date.day}';
+    return '$day|${(tx.amount * 100).round()}|${tx.title.trim().toLowerCase()}';
   }
 
   String? _clean(String? value) {

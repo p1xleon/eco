@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/privacy/transaction_visibility.dart';
+import '../../../../core/utils/money.dart';
 import '../../../../core/sync/sync_providers.dart';
 import '../../../recurring/presentation/pages/recurring_transactions_page.dart';
 import '../../../recurring/presentation/providers/recurring_transaction_provider.dart';
@@ -591,9 +592,7 @@ class _DashboardRecurringItemTile extends ConsumerWidget {
                 ),
                 FilledButton(
                   onPressed: () {
-                    final parsedAmount = double.tryParse(
-                      amountController.text.trim(),
-                    );
+                    final parsedAmount = parseAmount(amountController.text);
                     final hasAmountText = amountController.text
                         .trim()
                         .isNotEmpty;
@@ -637,7 +636,7 @@ class _DashboardRecurringItemTile extends ConsumerWidget {
       if (action == _RecurringDashboardAction.skip) {
         await service.skipRecurringTransaction(template);
       } else {
-        final amount = double.tryParse(amountController.text.trim());
+        final amount = parseAmount(amountController.text);
         await service.confirmRecurringTransaction(template, amount: amount);
       }
       _refreshDashboardData(ref);
