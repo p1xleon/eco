@@ -180,9 +180,7 @@ class _OverviewView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
+        _StatGrid(
           children: [
             _AnalyticsStatCard(
               label: 'Income',
@@ -210,8 +208,10 @@ class _OverviewView extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         CashFlowCard(
-          buckets: buildBuckets(transactions, period, now),
-          daily: period.isDaily,
+          buckets: period.isDaily
+              ? toWeeklyBuckets(buildBuckets(transactions, period, now))
+              : buildBuckets(transactions, period, now),
+          weekly: period.isDaily,
           incomeColor: scheme.primary,
           expenseColor: scheme.error,
           visibility: visibility,
@@ -324,17 +324,7 @@ class _AnalyticsBreakdownView extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
-        _AnalyticsHeroCard(
-          title: '$label Analytics',
-          subtitle: type == TransactionType.expense
-              ? 'Track where money is going and who gets paid.'
-              : 'Track where money comes from and how it lands.',
-          accent: accent,
-        ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
+        _StatGrid(
           children: [
             _AnalyticsStatCard(
               label: 'Total',
@@ -355,21 +345,22 @@ class _AnalyticsBreakdownView extends StatelessWidget {
               value: transactions.length.toString(),
               accent: scheme.tertiary,
             ),
+            _AnalyticsStatCard(
+              label: 'Top category',
+              value: allCategoryItems.first.label,
+              accent: allCategoryItems.first.color,
+            ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         _HighlightCard(
-          title: type == TransactionType.expense
-              ? 'Largest expense'
-              : 'Largest income',
+          title: isExpense ? 'Largest expense' : 'Largest income',
           value: visibility.displayTitle(highest),
           meta: visibility.displayAmount(
             '₹${highest.amount.toStringAsFixed(2)}',
           ),
           accent: accent,
         ),
-        const SizedBox(height: 16),
-        CategoryDonutCard(slices: donutSlices, visibility: visibility),
         const SizedBox(height: 16),
         TrendLineCard(
           buckets: buildBuckets(transactions, period, now),
@@ -379,32 +370,20 @@ class _AnalyticsBreakdownView extends StatelessWidget {
           visibility: visibility,
         ),
         const SizedBox(height: 16),
+        CategoryDonutCard(slices: donutSlices, visibility: visibility),
+        const SizedBox(height: 16),
         WeekdayBarsCard(
           totals: weekdayTotals(transactions),
           color: accent,
           visibility: visibility,
         ),
         const SizedBox(height: 16),
-        _BreakdownSection(
-          title: 'By Category',
-          subtitle: 'Which categories dominate this side of your cash flow.',
-          items: categoryItems,
-          visibility: visibility,
-        ),
-        const SizedBox(height: 16),
-        _BreakdownSection(
-          title: 'By Payment Method',
-          subtitle: 'How these transactions are usually handled.',
-          items: paymentMethodItems,
-          visibility: visibility,
-        ),
-        const SizedBox(height: 16),
-        _BreakdownSection(
-          title: type == TransactionType.expense ? 'Paid To' : 'Received From',
-          subtitle: type == TransactionType.expense
-              ? 'Who takes most of the money.'
-              : 'Who contributes most of the income.',
-          items: payeeItems,
+        _BreakdownTabsCard(
+          tabs: [
+            _BreakdownTab('Category', categoryItems),
+            _BreakdownTab('Payment', paymentMethodItems),
+            _BreakdownTab(isExpense ? 'Paid to' : 'From', payeeItems),
+          ],
           visibility: visibility,
         ),
       ],
@@ -509,40 +488,39 @@ class _AnalyticsStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return SizedBox(
-      width: 160,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.42),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: accent.withValues(alpha: 0.28)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: TextStyle(color: scheme.onSurfaceVariant)),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            if (footer != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  footer!,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: footerColor,
-                  ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          if (footer != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                footer!,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: footerColor,
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -617,27 +595,57 @@ class _HighlightCard extends StatelessWidget {
   }
 }
 
-class _BreakdownSection extends StatelessWidget {
-  final String title;
-  final String subtitle;
+/// Two-column grid of stat cards that fills the width.
+class _StatGrid extends StatelessWidget {
+  final List<Widget> children;
+
+  const _StatGrid({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = (constraints.maxWidth - 12) / 2;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            for (final child in children) SizedBox(width: width, child: child),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _BreakdownTab {
+  final String label;
   final List<_BreakdownItemData> items;
+
+  const _BreakdownTab(this.label, this.items);
+}
+
+/// One card with a Category / Payment / Payee switch instead of three tall cards.
+class _BreakdownTabsCard extends StatefulWidget {
+  final List<_BreakdownTab> tabs;
   final TransactionVisibilityState visibility;
 
-  const _BreakdownSection({
-    required this.title,
-    required this.subtitle,
-    required this.items,
-    required this.visibility,
-  });
+  const _BreakdownTabsCard({required this.tabs, required this.visibility});
+
+  @override
+  State<_BreakdownTabsCard> createState() => _BreakdownTabsCardState();
+}
+
+class _BreakdownTabsCardState extends State<_BreakdownTabsCard> {
+  var _selected = 0;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final items = widget.tabs[_selected].items;
     final maxAmount = items.isEmpty
         ? 0.0
-        : items
-              .map((item) => item.amount)
-              .reduce((current, next) => current > next ? current : next);
+        : items.map((i) => i.amount).reduce((a, b) => a > b ? a : b);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -652,21 +660,32 @@ class _BreakdownSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
+            'Breakdown',
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 4),
-          Text(subtitle, style: TextStyle(color: scheme.onSurfaceVariant)),
-          const SizedBox(height: 16),
-          ...items.map(
-            (item) => _BreakdownRow(
-              item: item,
-              maxAmount: maxAmount,
-              visibility: visibility,
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<int>(
+              showSelectedIcon: false,
+              segments: [
+                for (var i = 0; i < widget.tabs.length; i++)
+                  ButtonSegment(value: i, label: Text(widget.tabs[i].label)),
+              ],
+              selected: {_selected},
+              onSelectionChanged: (value) =>
+                  setState(() => _selected = value.first),
             ),
           ),
+          const SizedBox(height: 16),
+          for (final item in items)
+            _BreakdownRow(
+              item: item,
+              maxAmount: maxAmount,
+              visibility: widget.visibility,
+            ),
         ],
       ),
     );

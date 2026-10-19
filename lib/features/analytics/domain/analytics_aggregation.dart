@@ -113,7 +113,7 @@ List<BucketTotal> buildBuckets(
       ),
     );
   }
-  return buckets;
+  return daily ? buckets : capBuckets(buckets);
 }
 
 /// Totals indexed Monday (0) to Sunday (6).
@@ -123,4 +123,52 @@ List<double> weekdayTotals(List<TransactionModel> txs) {
     totals[tx.date.weekday - 1] += tx.amount;
   }
   return totals;
+}
+
+/// Collapses daily buckets into 7-day weeks (W1 = days 1-7, ...).
+List<BucketTotal> toWeeklyBuckets(List<BucketTotal> daily) {
+  final weeks = <BucketTotal>[];
+  for (var i = 0; i < daily.length; i += 7) {
+    final chunk = daily.skip(i).take(7);
+    weeks.add(
+      BucketTotal(
+        chunk.first.start,
+        income: chunk.fold(0.0, (s, b) => s + b.income),
+        expense: chunk.fold(0.0, (s, b) => s + b.expense),
+      ),
+    );
+  }
+  return weeks;
+}
+
+/// Short Indian-style amount for chart axes: 950, 1.2k, 45k, 1.2L, 2.5Cr.
+String compactAmount(double value) {
+  final v = value.abs();
+  String fmt(double n, String unit) {
+    final s = n >= 10 ? n.round().toString() : n.toStringAsFixed(1);
+    return '${s.endsWith('.0') ? s.substring(0, s.length - 2) : s}$unit';
+  }
+
+  final sign = value < 0 ? '-' : '';
+  if (v >= 10000000) return '$sign₹${fmt(v / 10000000, 'Cr')}';
+  if (v >= 100000) return '$sign₹${fmt(v / 100000, 'L')}';
+  if (v >= 1000) return '$sign₹${fmt(v / 1000, 'k')}';
+  return '$sign₹${v.round()}';
+}
+
+/// Past [maxMonthly] monthly buckets the axis is unreadable (an old or mistyped
+/// date can span decades), so they collapse into one bucket per year.
+List<BucketTotal> capBuckets(List<BucketTotal> monthly, {int maxMonthly = 24}) {
+  if (monthly.length <= maxMonthly) return monthly;
+
+  final years = <int, BucketTotal>{};
+  for (final b in monthly) {
+    final prev = years[b.start.year];
+    years[b.start.year] = BucketTotal(
+      DateTime(b.start.year),
+      income: (prev?.income ?? 0) + b.income,
+      expense: (prev?.expense ?? 0) + b.expense,
+    );
+  }
+  return years.values.toList();
 }

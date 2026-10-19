@@ -73,4 +73,42 @@ void main() {
     expect(t[0], 7);
     expect(t.skip(1).every((v) => v == 0), isTrue);
   });
+
+  test('compactAmount uses k / L / Cr', () {
+    expect(compactAmount(950), '₹950');
+    expect(compactAmount(1200), '₹1.2k');
+    expect(compactAmount(45000), '₹45k');
+    expect(compactAmount(120000), '₹1.2L');
+    expect(compactAmount(25000000), '₹2.5Cr');
+    expect(compactAmount(1000), '₹1k');
+  });
+
+  test('toWeeklyBuckets groups 31 days into 5 weeks and keeps totals', () {
+    final daily = buildBuckets(
+      [
+        tx(DateTime(2026, 3, 1), 4, TransactionType.expense),
+        tx(DateTime(2026, 3, 31), 6, TransactionType.expense),
+      ],
+      AnalyticsPeriod.thisMonth,
+      now,
+    );
+    final weeks = toWeeklyBuckets(daily);
+    expect(weeks, hasLength(5));
+    expect(weeks.first.expense, 4);
+    expect(weeks.last.expense, 6);
+  });
+
+  test('all-time over many years collapses to yearly buckets, totals kept', () {
+    final b = buildBuckets(
+      [
+        tx(DateTime(2001, 5, 1), 3, TransactionType.expense),
+        tx(DateTime(2026, 3, 2), 4, TransactionType.expense),
+      ],
+      AnalyticsPeriod.all,
+      now,
+    );
+    expect(b.first.start, DateTime(2001));
+    expect(b, hasLength(26));
+    expect(b.fold(0.0, (s, x) => s + x.expense), 7);
+  });
 }
