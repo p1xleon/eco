@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../categories/data/models/category_model.dart';
+import '../../data/models/transaction_fingerprint.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/providers/transaction_repository_provider.dart';
 import '../../data/repositories/transaction_repository.dart';
@@ -190,10 +191,23 @@ class ImportController extends StateNotifier<ImportSession> {
       // match something already stored are skipped; two identical rows inside
       // one file are both real (two coffees, same day, same price).
       final existing = {
-        for (final tx in await _repository.getLocalAll()) _fingerprint(tx),
+        for (final tx in await _repository.getLocalAll())
+          transactionFingerprint(
+            date: tx.date,
+            amount: tx.amount,
+            title: tx.title,
+          ),
       };
       final transactions = candidates
-          .where((tx) => !existing.contains(_fingerprint(tx)))
+          .where(
+            (tx) => !existing.contains(
+              transactionFingerprint(
+                date: tx.date,
+                amount: tx.amount,
+                title: tx.title,
+              ),
+            ),
+          )
           .toList(growable: false);
       lastSkippedDuplicates = candidates.length - transactions.length;
       if (transactions.isEmpty) {
@@ -248,11 +262,6 @@ class ImportController extends StateNotifier<ImportSession> {
       ..updatedAt = null;
 
     return transaction;
-  }
-
-  String _fingerprint(TransactionModel tx) {
-    final day = '${tx.date.year}-${tx.date.month}-${tx.date.day}';
-    return '$day|${(tx.amount * 100).round()}|${tx.title.trim().toLowerCase()}';
   }
 
   String? _clean(String? value) {

@@ -25,6 +25,7 @@ import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../../../recurring/domain/services/recurring_recovery_service.dart';
 import '../../../recurring/presentation/pages/recurring_transactions_page.dart';
 import '../../../recurring/presentation/providers/recurring_transaction_provider.dart';
+import '../../../transactions/bulk/presentation/bulk_add_page.dart';
 import '../../../transactions/data/providers/transaction_remote_provider.dart';
 import '../../../transactions/import/pages/import_transactions_page.dart';
 import '../../../transactions/presentation/providers/transaction_provider.dart';
@@ -133,6 +134,19 @@ class SettingsPage extends ConsumerWidget {
                     MaterialPageRoute(
                       builder: (_) => const TransactionPresetsPage(),
                     ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _SettingsActionTile(
+                icon: Icons.playlist_add_outlined,
+                title: 'Bulk Add',
+                subtitle:
+                    'Add a repeating income or expense that was never entered, then edit each entry before saving',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BulkAddPage()),
                   );
                 },
               ),
