@@ -310,7 +310,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
                 title: Text(template.title),
                 subtitle: Text(
                   '${_intervalLabel(template.intervalType)} • $categoryName'
-                  '${template.defaultAmount != null ? ' • ₹${template.defaultAmount!.toStringAsFixed(2)}' : ''}',
+                  '${template.defaultAmount != null ? ' • ${formatMoney(template.defaultAmount!)}' : ''}',
                 ),
                 trailing: _selectedRecurringTemplateId == template.id
                     ? const Icon(Icons.check_circle_rounded)

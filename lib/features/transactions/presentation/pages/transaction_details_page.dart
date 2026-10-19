@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/money.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -94,7 +95,7 @@ class _TransactionDetailsPageState
               );
               final title = visibility.displayTitle(_transaction);
               final amount = visibility.displayAmount(
-                '${isExpense ? '-' : '+'} ₹${_transaction.amount.toStringAsFixed(2)}',
+                '${isExpense ? '-' : '+'} ${formatMoney(_transaction.amount)}',
               );
               final paymentMethod = visibility.displayText(
                 _transaction.paymentMethod,

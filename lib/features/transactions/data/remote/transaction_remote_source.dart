@@ -143,6 +143,9 @@ class TransactionRemoteSource {
             .select()
             .eq('user_id', userId)
             .order('date', ascending: false)
+            // Tiebreaker: rows with equal sort values could otherwise swap pages
+            // between requests and be skipped, then deleted locally as "removed".
+            .order('id', ascending: true)
             .range(offset, offset + _pageSize - 1),
       );
 

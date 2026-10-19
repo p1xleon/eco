@@ -65,7 +65,7 @@ class DashboardPage extends ConsumerWidget {
                           child: _SummaryCard(
                             label: "Expense",
                             value: visibility.displayAmount(
-                              '₹${stats.expense.toStringAsFixed(2)}',
+                              formatMoney(stats.expense),
                             ),
                             color: Colors.red,
                           ),
@@ -75,7 +75,7 @@ class DashboardPage extends ConsumerWidget {
                           child: _SummaryCard(
                             label: "Income",
                             value: visibility.displayAmount(
-                              '₹${stats.income.toStringAsFixed(2)}',
+                              formatMoney(stats.income),
                             ),
                             color: Colors.green,
                           ),
@@ -419,7 +419,7 @@ class _DashboardRecurringItemTile extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final dueLabel = DateFormat('EEE, dd MMM').format(item.nextDueDate);
     final amountText = item.defaultAmount != null
-        ? '₹${item.defaultAmount!.toStringAsFixed(2)}'
+        ? formatMoney(item.defaultAmount!)
         : 'Set amount';
     final amountColor = item.type == TransactionType.expense
         ? scheme.error

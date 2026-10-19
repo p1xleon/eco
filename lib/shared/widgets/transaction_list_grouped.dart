@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/money.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -213,7 +214,7 @@ class _MonthSection extends StatelessWidget {
                             children: [
                               Text(
                                 visibility.displayAmount(
-                                  "+ ₹${group.income.toStringAsFixed(2)}",
+                                  "+ ${formatMoney(group.income)}",
                                 ),
                                 style: TextStyle(
                                   color: scheme.primary,
@@ -223,7 +224,7 @@ class _MonthSection extends StatelessWidget {
                               const SizedBox(width: 16),
                               Text(
                                 visibility.displayAmount(
-                                  "- ₹${group.expense.toStringAsFixed(2)}",
+                                  "- ${formatMoney(group.expense)}",
                                 ),
                                 style: TextStyle(
                                   color: scheme.error,

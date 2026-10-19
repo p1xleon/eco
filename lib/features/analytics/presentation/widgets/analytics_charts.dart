@@ -1,4 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
+import '../../../../core/utils/money.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -22,7 +23,7 @@ int _percent(double amount, double total) =>
     total <= 0 ? 0 : (amount / total * 100).round();
 
 String _money(TransactionVisibilityState v, double amount) =>
-    v.displayAmount('₹${amount.toStringAsFixed(2)}');
+    v.displayAmount(formatMoney(amount));
 
 String _short(TransactionVisibilityState v, double amount) =>
     v.displayAmount(compactAmount(amount));

@@ -517,7 +517,7 @@ class _RecurringTemplateCard extends StatelessWidget {
     final displayAmount = template.amountType == RecurringAmountType.fixed
         ? visibility.displayAmount(
             template.defaultAmount != null
-                ? '₹${template.defaultAmount!.toStringAsFixed(2)}'
+                ? formatMoney(template.defaultAmount!)
                 : '—',
           )
         : visibility.isMasked

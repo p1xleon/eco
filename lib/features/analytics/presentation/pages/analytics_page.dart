@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/money.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/privacy/transaction_visibility.dart';
@@ -184,17 +185,17 @@ class _OverviewView extends StatelessWidget {
           children: [
             _AnalyticsStatCard(
               label: 'Income',
-              value: visibility.displayAmount('₹${income.toStringAsFixed(2)}'),
+              value: visibility.displayAmount(formatMoney(income)),
               accent: scheme.primary,
             ),
             _AnalyticsStatCard(
               label: 'Expense',
-              value: visibility.displayAmount('₹${expense.toStringAsFixed(2)}'),
+              value: visibility.displayAmount(formatMoney(expense)),
               accent: scheme.error,
             ),
             _AnalyticsStatCard(
               label: 'Net',
-              value: visibility.displayAmount('₹${net.toStringAsFixed(2)}'),
+              value: visibility.displayAmount(formatMoney(net)),
               accent: net >= 0 ? scheme.primary : scheme.error,
             ),
             _AnalyticsStatCard(
@@ -330,7 +331,7 @@ class _AnalyticsBreakdownView extends StatelessWidget {
           children: [
             _AnalyticsStatCard(
               label: 'Total',
-              value: visibility.displayAmount('₹${total.toStringAsFixed(2)}'),
+              value: visibility.displayAmount(formatMoney(total)),
               accent: accent,
               footer: change == null || visibility.isMasked
                   ? null
@@ -339,7 +340,7 @@ class _AnalyticsBreakdownView extends StatelessWidget {
             ),
             _AnalyticsStatCard(
               label: 'Average',
-              value: visibility.displayAmount('₹${average.toStringAsFixed(2)}'),
+              value: visibility.displayAmount(formatMoney(average)),
               accent: scheme.secondary,
             ),
             _AnalyticsStatCard(
@@ -358,9 +359,7 @@ class _AnalyticsBreakdownView extends StatelessWidget {
         _HighlightCard(
           title: isExpense ? 'Largest expense' : 'Largest income',
           value: visibility.displayTitle(highest),
-          meta: visibility.displayAmount(
-            '₹${highest.amount.toStringAsFixed(2)}',
-          ),
+          meta: visibility.displayAmount(formatMoney(highest.amount)),
           accent: accent,
         ),
         const SizedBox(height: 16),
@@ -727,7 +726,7 @@ class _BreakdownRow extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                visibility.displayAmount('₹${item.amount.toStringAsFixed(2)}'),
+                visibility.displayAmount(formatMoney(item.amount)),
                 style: TextStyle(
                   color: item.color,
                   fontWeight: FontWeight.w800,

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/utils/money.dart';
 import '../../data/models/transaction_model.dart';
 import 'transaction_provider.dart';
 import '../models/month_group.dart';
@@ -35,8 +36,8 @@ final monthGroupsProvider = Provider<AsyncValue<List<MonthGroup>>>((ref) {
       result.add(
         MonthGroup(
           month: month,
-          income: income,
-          expense: expense,
+          income: roundCents(income),
+          expense: roundCents(expense),
           transactions: list,
         ),
       );

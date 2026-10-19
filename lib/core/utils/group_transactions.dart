@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 
 import '../../features/transactions/data/models/transaction_model.dart';
+import 'money.dart';
 
 final DateFormat _monthKeyFormatter = DateFormat('MMMM yyyy');
 
@@ -42,8 +43,8 @@ List<TransactionMonthGroup> groupTransactionsByMonth(
           monthKey: key,
           title: _monthKeyFormatter.format(DateTime(year, month)),
           transactions: monthTransactions,
-          income: income,
-          expense: expense,
+          income: roundCents(income),
+          expense: roundCents(expense),
         );
       })
       .toList(growable: false);
