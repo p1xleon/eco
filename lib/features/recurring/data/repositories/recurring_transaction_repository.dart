@@ -488,7 +488,9 @@ class RecurringTransactionRepository {
       template.title.trim().toLowerCase(),
       template.intervalType.name,
       template.intervalCount.toString(),
-      template.nextDueDate.toIso8601String(),
+      // Instant, not text: a pulled value is UTC and a local one is not, so their
+      // strings never matched.
+      template.nextDueDate.millisecondsSinceEpoch.toString(),
     ].join('|');
   }
 }

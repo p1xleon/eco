@@ -29,12 +29,13 @@ extension RecurringTransactionMapper on RecurringTransactionModel {
       'account_id': cipher == null ? accountId : cipher.encryptNullable(accountId),
       'interval_type': intervalType.name,
       'interval_count': intervalCount,
-      'next_due_date': nextDueDate.toIso8601String(),
+      'next_due_date': nextDueDate.toUtc().toIso8601String(),
+      // `timestamp without time zone` on the server: the wall-clock string is right as is.
       'end_date': endDate?.toIso8601String(),
       'is_active': isActive,
       'note': cipher == null ? note : cipher.encryptNullable(note),
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt?.toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'updated_at': updatedAt?.toUtc().toIso8601String(),
     };
   }
 
@@ -67,16 +68,18 @@ extension RecurringTransactionMapper on RecurringTransactionModel {
       _ => RecurringIntervalType.monthly,
     };
     model.intervalCount = (json['interval_count'] as num?)?.toInt() ?? 1;
-    model.nextDueDate = DateTime.parse(json['next_due_date'] as String);
+    model.nextDueDate = DateTime.parse(
+      json['next_due_date'] as String,
+    ).toLocal();
     model.endDate = json['end_date'] == null
         ? null
         : DateTime.parse(json['end_date'] as String);
     model.isActive = json['is_active'] as bool? ?? true;
     model.note = FieldCipher.readString(cipher, json['note']);
-    model.createdAt = DateTime.parse(json['created_at'] as String);
+    model.createdAt = DateTime.parse(json['created_at'] as String).toLocal();
     model.updatedAt = json['updated_at'] == null
         ? null
-        : DateTime.parse(json['updated_at'] as String);
+        : DateTime.parse(json['updated_at'] as String).toLocal();
 
     return model;
   }

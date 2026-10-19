@@ -47,9 +47,9 @@ extension TransactionMapper on TransactionModel {
           : cipher.encryptNullable(paymentMethod),
       'payee': cipher == null ? payee : cipher.encryptNullable(payee),
       'note': cipher == null ? note : cipher.encryptNullable(note),
-      'date': date.toIso8601String(),
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt?.toIso8601String(),
+      'date': date.toUtc().toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'updated_at': updatedAt?.toUtc().toIso8601String(),
       'recurring_id': recurringId,
       'recurring_template_id': recurringTemplateId,
       'is_recurring_instance': isRecurringInstance,
@@ -89,7 +89,7 @@ extension TransactionMapper on TransactionModel {
       cipher,
       json[transactionAmountEncryptedColumn] ?? json['amount'],
     )!;
-    transaction.date = DateTime.parse(json['date']);
+    transaction.date = DateTime.parse(json['date']).toLocal();
     transaction.type = json['type'] == 'income'
         ? TransactionType.income
         : TransactionType.expense;
@@ -104,9 +104,9 @@ extension TransactionMapper on TransactionModel {
     );
     transaction.payee = FieldCipher.readString(cipher, json['payee']);
     transaction.note = FieldCipher.readString(cipher, json['note']);
-    transaction.createdAt = DateTime.parse(json['created_at']);
+    transaction.createdAt = DateTime.parse(json['created_at']).toLocal();
     transaction.updatedAt = json['updated_at'] != null
-        ? DateTime.parse(json['updated_at'])
+        ? DateTime.parse(json['updated_at']).toLocal()
         : null;
 
     return transaction;
