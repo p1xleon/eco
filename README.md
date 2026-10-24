@@ -19,20 +19,23 @@ Flutter, Riverpod, go_router, Isar (`isar_community`), Supabase, fl_chart. Code 
 ## Setup
 
 1. Install Flutter (Dart SDK `^3.11.0`) and run `flutter pub get`.
-2. Create a `.env` file in the project root (the app throws at startup if either value is missing):
+2. Copy `.env.example` to `.env` and fill in your Supabase values (the app throws at startup if either is missing; `.env` is gitignored):
    ```
    SUPABASE_URL=...
    SUPABASE_ANON_KEY=...
    ```
-3. Apply the SQL in `supabase/migrations` to your Supabase project.
-4. Generate Isar/JSON code if the `*.g.dart` files are out of date:
+3. The `android/`, `ios/` and `macos/` folders are gitignored, so a fresh clone has none. Generate the ones you need with the app ID you want to ship, for example `flutter create . --platforms=android --org com.yourname`. Back up the folders you generate: they hold your app ID and signing setup, and nothing in git does.
+4. Apply the SQL in `supabase/migrations` to your Supabase project.
+5. Generate Isar code if the `*.g.dart` files are out of date:
    ```
    dart run build_runner build --delete-conflicting-outputs
    ```
-5. Run the app with `flutter run`.
+6. Run the app with `flutter run`.
 
 ## Tests
 
 ```
 flutter test
 ```
+
+Tests need a `.env` file because `pubspec.yaml` bundles it as an asset; `cp .env.example .env` is enough (CI does the same).
