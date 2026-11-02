@@ -24,6 +24,11 @@ create table if not exists public.collections (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+-- `create table if not exists` skips a table made by an earlier run of this
+-- file, so the column is added separately.
+alter table public.collections
+  add column if not exists separate boolean not null default false;
+
 create index if not exists collections_user_id_idx
   on public.collections (user_id);
 
