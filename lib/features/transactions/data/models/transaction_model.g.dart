@@ -23,75 +23,80 @@ const TransactionModelSchema = CollectionSchema(
       name: r'categoryId',
       type: IsarType.long,
     ),
-    r'createdAt': PropertySchema(
+    r'collectionId': PropertySchema(
       id: 2,
+      name: r'collectionId',
+      type: IsarType.long,
+    ),
+    r'createdAt': PropertySchema(
+      id: 3,
       name: r'createdAt',
       type: IsarType.dateTime,
     ),
-    r'date': PropertySchema(id: 3, name: r'date', type: IsarType.dateTime),
+    r'date': PropertySchema(id: 4, name: r'date', type: IsarType.dateTime),
     r'isRecurringInstance': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'isRecurringInstance',
       type: IsarType.bool,
     ),
     r'lastSyncError': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'lastSyncError',
       type: IsarType.string,
     ),
     r'localUpdatedAt': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'localUpdatedAt',
       type: IsarType.dateTime,
     ),
-    r'note': PropertySchema(id: 7, name: r'note', type: IsarType.string),
-    r'payee': PropertySchema(id: 8, name: r'payee', type: IsarType.string),
+    r'note': PropertySchema(id: 8, name: r'note', type: IsarType.string),
+    r'payee': PropertySchema(id: 9, name: r'payee', type: IsarType.string),
     r'paymentMethod': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'paymentMethod',
       type: IsarType.string,
     ),
     r'recurringId': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'recurringId',
       type: IsarType.string,
     ),
     r'recurringTemplateId': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'recurringTemplateId',
       type: IsarType.long,
     ),
     r'remoteId': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'remoteId',
       type: IsarType.string,
     ),
     r'status': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'status',
       type: IsarType.byte,
       enumMap: _TransactionModelstatusEnumValueMap,
     ),
     r'syncAttempts': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'syncAttempts',
       type: IsarType.long,
     ),
     r'syncState': PropertySchema(
-      id: 15,
+      id: 16,
       name: r'syncState',
       type: IsarType.byte,
       enumMap: _TransactionModelsyncStateEnumValueMap,
     ),
-    r'title': PropertySchema(id: 16, name: r'title', type: IsarType.string),
+    r'title': PropertySchema(id: 17, name: r'title', type: IsarType.string),
     r'type': PropertySchema(
-      id: 17,
+      id: 18,
       name: r'type',
       type: IsarType.byte,
       enumMap: _TransactionModeltypeEnumValueMap,
     ),
     r'updatedAt': PropertySchema(
-      id: 18,
+      id: 19,
       name: r'updatedAt',
       type: IsarType.dateTime,
     ),
@@ -166,23 +171,24 @@ void _transactionModelSerialize(
 ) {
   writer.writeDouble(offsets[0], object.amount);
   writer.writeLong(offsets[1], object.categoryId);
-  writer.writeDateTime(offsets[2], object.createdAt);
-  writer.writeDateTime(offsets[3], object.date);
-  writer.writeBool(offsets[4], object.isRecurringInstance);
-  writer.writeString(offsets[5], object.lastSyncError);
-  writer.writeDateTime(offsets[6], object.localUpdatedAt);
-  writer.writeString(offsets[7], object.note);
-  writer.writeString(offsets[8], object.payee);
-  writer.writeString(offsets[9], object.paymentMethod);
-  writer.writeString(offsets[10], object.recurringId);
-  writer.writeLong(offsets[11], object.recurringTemplateId);
-  writer.writeString(offsets[12], object.remoteId);
-  writer.writeByte(offsets[13], object.status.index);
-  writer.writeLong(offsets[14], object.syncAttempts);
-  writer.writeByte(offsets[15], object.syncState.index);
-  writer.writeString(offsets[16], object.title);
-  writer.writeByte(offsets[17], object.type.index);
-  writer.writeDateTime(offsets[18], object.updatedAt);
+  writer.writeLong(offsets[2], object.collectionId);
+  writer.writeDateTime(offsets[3], object.createdAt);
+  writer.writeDateTime(offsets[4], object.date);
+  writer.writeBool(offsets[5], object.isRecurringInstance);
+  writer.writeString(offsets[6], object.lastSyncError);
+  writer.writeDateTime(offsets[7], object.localUpdatedAt);
+  writer.writeString(offsets[8], object.note);
+  writer.writeString(offsets[9], object.payee);
+  writer.writeString(offsets[10], object.paymentMethod);
+  writer.writeString(offsets[11], object.recurringId);
+  writer.writeLong(offsets[12], object.recurringTemplateId);
+  writer.writeString(offsets[13], object.remoteId);
+  writer.writeByte(offsets[14], object.status.index);
+  writer.writeLong(offsets[15], object.syncAttempts);
+  writer.writeByte(offsets[16], object.syncState.index);
+  writer.writeString(offsets[17], object.title);
+  writer.writeByte(offsets[18], object.type.index);
+  writer.writeDateTime(offsets[19], object.updatedAt);
 }
 
 TransactionModel _transactionModelDeserialize(
@@ -194,32 +200,33 @@ TransactionModel _transactionModelDeserialize(
   final object = TransactionModel();
   object.amount = reader.readDouble(offsets[0]);
   object.categoryId = reader.readLong(offsets[1]);
-  object.createdAt = reader.readDateTime(offsets[2]);
-  object.date = reader.readDateTime(offsets[3]);
+  object.collectionId = reader.readLongOrNull(offsets[2]);
+  object.createdAt = reader.readDateTime(offsets[3]);
+  object.date = reader.readDateTime(offsets[4]);
   object.id = id;
-  object.isRecurringInstance = reader.readBoolOrNull(offsets[4]);
-  object.lastSyncError = reader.readStringOrNull(offsets[5]);
-  object.localUpdatedAt = reader.readDateTimeOrNull(offsets[6]);
-  object.note = reader.readStringOrNull(offsets[7]);
-  object.payee = reader.readStringOrNull(offsets[8]);
-  object.paymentMethod = reader.readStringOrNull(offsets[9]);
-  object.recurringId = reader.readStringOrNull(offsets[10]);
-  object.recurringTemplateId = reader.readLongOrNull(offsets[11]);
-  object.remoteId = reader.readStringOrNull(offsets[12]);
+  object.isRecurringInstance = reader.readBoolOrNull(offsets[5]);
+  object.lastSyncError = reader.readStringOrNull(offsets[6]);
+  object.localUpdatedAt = reader.readDateTimeOrNull(offsets[7]);
+  object.note = reader.readStringOrNull(offsets[8]);
+  object.payee = reader.readStringOrNull(offsets[9]);
+  object.paymentMethod = reader.readStringOrNull(offsets[10]);
+  object.recurringId = reader.readStringOrNull(offsets[11]);
+  object.recurringTemplateId = reader.readLongOrNull(offsets[12]);
+  object.remoteId = reader.readStringOrNull(offsets[13]);
   object.status =
-      _TransactionModelstatusValueEnumMap[reader.readByteOrNull(offsets[13])] ??
+      _TransactionModelstatusValueEnumMap[reader.readByteOrNull(offsets[14])] ??
       TransactionStatus.paid;
-  object.syncAttempts = reader.readLong(offsets[14]);
+  object.syncAttempts = reader.readLong(offsets[15]);
   object.syncState =
       _TransactionModelsyncStateValueEnumMap[reader.readByteOrNull(
-        offsets[15],
+        offsets[16],
       )] ??
       SyncState.synced;
-  object.title = reader.readString(offsets[16]);
+  object.title = reader.readString(offsets[17]);
   object.type =
-      _TransactionModeltypeValueEnumMap[reader.readByteOrNull(offsets[17])] ??
+      _TransactionModeltypeValueEnumMap[reader.readByteOrNull(offsets[18])] ??
       TransactionType.income;
-  object.updatedAt = reader.readDateTimeOrNull(offsets[18]);
+  object.updatedAt = reader.readDateTimeOrNull(offsets[19]);
   return object;
 }
 
@@ -235,17 +242,17 @@ P _transactionModelDeserializeProp<P>(
     case 1:
       return (reader.readLong(offset)) as P;
     case 2:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 3:
       return (reader.readDateTime(offset)) as P;
     case 4:
-      return (reader.readBoolOrNull(offset)) as P;
+      return (reader.readDateTime(offset)) as P;
     case 5:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBoolOrNull(offset)) as P;
     case 6:
-      return (reader.readDateTimeOrNull(offset)) as P;
-    case 7:
       return (reader.readStringOrNull(offset)) as P;
+    case 7:
+      return (reader.readDateTimeOrNull(offset)) as P;
     case 8:
       return (reader.readStringOrNull(offset)) as P;
     case 9:
@@ -253,32 +260,34 @@ P _transactionModelDeserializeProp<P>(
     case 10:
       return (reader.readStringOrNull(offset)) as P;
     case 11:
-      return (reader.readLongOrNull(offset)) as P;
-    case 12:
       return (reader.readStringOrNull(offset)) as P;
+    case 12:
+      return (reader.readLongOrNull(offset)) as P;
     case 13:
+      return (reader.readStringOrNull(offset)) as P;
+    case 14:
       return (_TransactionModelstatusValueEnumMap[reader.readByteOrNull(
                 offset,
               )] ??
               TransactionStatus.paid)
           as P;
-    case 14:
-      return (reader.readLong(offset)) as P;
     case 15:
+      return (reader.readLong(offset)) as P;
+    case 16:
       return (_TransactionModelsyncStateValueEnumMap[reader.readByteOrNull(
                 offset,
               )] ??
               SyncState.synced)
           as P;
-    case 16:
-      return (reader.readString(offset)) as P;
     case 17:
+      return (reader.readString(offset)) as P;
+    case 18:
       return (_TransactionModeltypeValueEnumMap[reader.readByteOrNull(
                 offset,
               )] ??
               TransactionType.income)
           as P;
-    case 18:
+    case 19:
       return (reader.readDateTimeOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -526,6 +535,79 @@ extension TransactionModelQueryFilter
       return query.addFilterCondition(
         FilterCondition.between(
           property: r'categoryId',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterFilterCondition>
+  collectionIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'collectionId'),
+      );
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterFilterCondition>
+  collectionIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'collectionId'),
+      );
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterFilterCondition>
+  collectionIdEqualTo(int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'collectionId', value: value),
+      );
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterFilterCondition>
+  collectionIdGreaterThan(int? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'collectionId',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterFilterCondition>
+  collectionIdLessThan(int? value, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'collectionId',
+          value: value,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterFilterCondition>
+  collectionIdBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'collectionId',
           lower: lower,
           includeLower: includeLower,
           upper: upper,
@@ -2299,6 +2381,20 @@ extension TransactionModelQuerySortBy
   }
 
   QueryBuilder<TransactionModel, TransactionModel, QAfterSortBy>
+  sortByCollectionId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'collectionId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterSortBy>
+  sortByCollectionIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'collectionId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterSortBy>
   sortByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'createdAt', Sort.asc);
@@ -2559,6 +2655,20 @@ extension TransactionModelQuerySortThenBy
   thenByCategoryIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'categoryId', Sort.desc);
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterSortBy>
+  thenByCollectionId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'collectionId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QAfterSortBy>
+  thenByCollectionIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'collectionId', Sort.desc);
     });
   }
 
@@ -2826,6 +2936,13 @@ extension TransactionModelQueryWhereDistinct
   }
 
   QueryBuilder<TransactionModel, TransactionModel, QDistinct>
+  distinctByCollectionId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'collectionId');
+    });
+  }
+
+  QueryBuilder<TransactionModel, TransactionModel, QDistinct>
   distinctByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'createdAt');
@@ -2969,6 +3086,13 @@ extension TransactionModelQueryProperty
   QueryBuilder<TransactionModel, int, QQueryOperations> categoryIdProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'categoryId');
+    });
+  }
+
+  QueryBuilder<TransactionModel, int?, QQueryOperations>
+  collectionIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'collectionId');
     });
   }
 

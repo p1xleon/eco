@@ -31,6 +31,10 @@ class TransactionModel {
 
   late int categoryId;
 
+  /// The collection this transaction is grouped under, if any. Local Isar id;
+  /// the server holds the collection's uuid instead.
+  int? collectionId;
+
   String? paymentMethod;
 
   String? payee;
