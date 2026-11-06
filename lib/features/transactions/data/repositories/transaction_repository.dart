@@ -10,6 +10,7 @@ import '../../../../core/sync/sync_state.dart';
 import '../../../../core/sync/sync_issues.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/data/repositories/category_repository.dart';
+import '../../../collections/data/models/collection_model.dart';
 import '../models/transaction_mapper.dart';
 import '../models/transaction_model.dart';
 import '../remote/transaction_remote_source.dart';
@@ -464,6 +465,7 @@ class TransactionRepository {
   Future<void> _pullRemoteTransactions() async {
     final data = await remote.fetchTransactions();
     final categoryIdsByRemoteId = await _localCategoryIdsByRemoteId();
+    final collectionIdsByRemoteId = await _localCollectionIdsByRemoteId();
 
     // One unreadable row (wrong key, corrupted ciphertext) must not freeze sync
     // for every other row. It is skipped, counted, and still treated as present
@@ -477,6 +479,8 @@ class TransactionRepository {
             json,
             categoryId:
                 categoryIdsByRemoteId[json[transactionCategoryRemoteIdColumn]],
+            collectionId:
+                collectionIdsByRemoteId[json[transactionCollectionRemoteIdColumn]],
             cipher: cipher,
           ),
         );
@@ -492,7 +496,34 @@ class TransactionRepository {
         for (final json in data)
           if (json['id'] is String) json['id'] as String,
       },
+      unsyncedCollectionIds: await _unsyncedCollectionIds(),
     );
+  }
+
+  /// Only collections still visible locally. A uuid pointing at one deleted
+  /// here resolves to nothing, so the transaction shows as unassigned.
+  Future<Map<String, int>> _localCollectionIdsByRemoteId() async {
+    final collections = await _isar.collectionModels.where().findAll();
+
+    return {
+      for (final collection in collections)
+        if (collection.remoteId != null && collection.syncState.isVisible)
+          collection.remoteId!: collection.id,
+    };
+  }
+
+  /// Collections the server has not received yet. It cannot name them, so a
+  /// null it sends for their members is not an un-assignment.
+  Future<Set<int>> _unsyncedCollectionIds() async {
+    final collections = await _isar.collectionModels
+        .filter()
+        .remoteIdIsNull()
+        .findAll();
+
+    return {
+      for (final collection in collections)
+        if (collection.syncState.isVisible) collection.id,
+    };
   }
 
   Future<Map<String, int>> _localCategoryIdsByRemoteId() async {
@@ -513,6 +544,7 @@ class TransactionRepository {
   Future<void> _mergeRemoteTransactions(
     List<TransactionModel> remoteTransactions, {
     Set<String>? serverIds,
+    Set<int> unsyncedCollectionIds = const {},
   }) async {
     final locals = await _isar.transactionModels.where().findAll();
     final localByRemoteId = <String, TransactionModel>{
@@ -545,6 +577,10 @@ class TransactionRepository {
       incoming.recurringId ??= existing.recurringId;
       incoming.recurringTemplateId ??= existing.recurringTemplateId;
       incoming.isRecurringInstance ??= existing.isRecurringInstance;
+      if (incoming.collectionId == null &&
+          unsyncedCollectionIds.contains(existing.collectionId)) {
+        incoming.collectionId = existing.collectionId;
+      }
       toPut.add(incoming);
     }
 
@@ -600,11 +636,15 @@ class TransactionRepository {
     bool includeId = false,
   }) async {
     final category = await _isar.categoryModels.get(tx.categoryId);
+    final collection = tx.collectionId == null
+        ? null
+        : await _isar.collectionModels.get(tx.collectionId!);
 
     return tx.toJson(
       userId,
       includeId: includeId,
       categoryRemoteId: category?.remoteId,
+      collectionRemoteId: collection?.remoteId,
       cipher: cipher,
     );
   }
@@ -618,6 +658,7 @@ class TransactionRepository {
     return TransactionMapper.fromJson(
       json,
       categoryId: fallback.categoryId,
+      collectionId: fallback.collectionId,
       cipher: cipher,
     );
   }
@@ -625,6 +666,7 @@ class TransactionRepository {
   Future<List<TransactionModel>> fetchRemoteTransactions() async {
     final data = await remote.fetchTransactions();
     final categoryIdsByRemoteId = await _localCategoryIdsByRemoteId();
+    final collectionIdsByRemoteId = await _localCollectionIdsByRemoteId();
 
     return data.map((json) {
       final categoryRemoteId =
@@ -635,6 +677,8 @@ class TransactionRepository {
         categoryId: categoryRemoteId == null
             ? null
             : categoryIdsByRemoteId[categoryRemoteId],
+        collectionId:
+            collectionIdsByRemoteId[json[transactionCollectionRemoteIdColumn]],
         cipher: cipher,
       );
     }).toList();
