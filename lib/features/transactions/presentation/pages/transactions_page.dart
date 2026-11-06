@@ -7,6 +7,8 @@ import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../../core/sync/sync_providers.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
+import '../../../collections/presentation/pages/collections_page.dart';
+import '../../../collections/presentation/providers/collection_provider.dart';
 import '../../../recurring/presentation/pages/recurring_transactions_page.dart';
 import '../../../../shared/widgets/transaction_list_grouped.dart';
 import '../providers/transaction_filter.dart';
@@ -82,28 +84,35 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transactions'),
-        actions: _isRecurringTab
-            ? null
-            : [
-                IconButton(
-                  tooltip: 'Collapse all months',
-                  icon: const Icon(Icons.unfold_less),
-                  onPressed: _collapseAllMonths,
+        actions: [
+          if (!_isRecurringTab) ...[
+            IconButton(
+              tooltip: 'Collapse all months',
+              icon: const Icon(Icons.unfold_less),
+              onPressed: _collapseAllMonths,
+            ),
+            if (!visibility.isMasked && !visibility.isInvisible)
+              IconButton(
+                icon: Badge(
+                  isLabelVisible: filter.activeCount > 0,
+                  label: Text(filter.activeCount.toString()),
+                  child: const Icon(Icons.filter_list),
                 ),
-                if (!visibility.isMasked && !visibility.isInvisible)
-                  IconButton(
-                    icon: Badge(
-                      isLabelVisible: filter.activeCount > 0,
-                      label: Text(filter.activeCount.toString()),
-                      child: const Icon(Icons.filter_list),
-                    ),
-                    onPressed: () => _openFilterSheet(
-                      categories: categoriesAsync.valueOrNull ?? const [],
-                      transactions:
-                          allTransactionsAsync.valueOrNull ?? const [],
-                    ),
-                  ),
-              ],
+                onPressed: () => _openFilterSheet(
+                  categories: categoriesAsync.valueOrNull ?? const [],
+                  transactions: allTransactionsAsync.valueOrNull ?? const [],
+                ),
+              ),
+          ],
+          IconButton(
+            tooltip: 'Collections',
+            icon: const Icon(Icons.folder_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CollectionsPage()),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -287,6 +296,7 @@ class _TransactionFilterSheetState
     extends ConsumerState<_TransactionFilterSheet> {
   late TransactionType? _type;
   late int? _categoryId;
+  late int? _collectionId;
   late String? _paymentMethod;
   late String? _payee;
   late RecurringFilter _recurring;
@@ -303,6 +313,7 @@ class _TransactionFilterSheetState
     final filter = widget.initialFilter;
     _type = filter.type;
     _categoryId = filter.categoryId;
+    _collectionId = filter.collectionId;
     _paymentMethod = filter.paymentMethod;
     _payee = filter.payee;
     _recurring = filter.recurring;
@@ -328,6 +339,7 @@ class _TransactionFilterSheetState
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final collections = ref.watch(collectionsProvider).valueOrNull ?? const [];
     final paymentMethods =
         widget.transactions
             .map((tx) => tx.paymentMethod?.trim())
@@ -409,6 +421,29 @@ class _TransactionFilterSheetState
                       ],
                       onChanged: (value) => setState(() => _categoryId = value),
                     ),
+                    if (collections.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int?>(
+                        // A collection deleted since falls back to all.
+                        initialValue:
+                            collections.any((c) => c.id == _collectionId)
+                            ? _collectionId
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Collection',
+                        ),
+                        items: [
+                          const DropdownMenuItem(
+                            value: null,
+                            child: Text('All collections'),
+                          ),
+                          for (final c in collections)
+                            DropdownMenuItem(value: c.id, child: Text(c.name)),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _collectionId = value),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -639,6 +674,7 @@ class _TransactionFilterSheetState
     setState(() {
       _type = null;
       _categoryId = null;
+      _collectionId = null;
       _paymentMethod = null;
       _payee = null;
       _recurring = RecurringFilter.all;
@@ -661,6 +697,7 @@ class _TransactionFilterSheetState
           widget.initialFilter.copyWith(
             type: _type,
             categoryId: _categoryId,
+            collectionId: _collectionId,
             paymentMethod: _paymentMethod,
             payee: _payee,
             minAmount: minAmount,
