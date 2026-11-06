@@ -5,6 +5,7 @@ import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../../core/utils/money.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
+import '../../../collections/presentation/providers/collection_provider.dart';
 import '../../../recurring/data/models/recurring_transaction_model.dart';
 import '../../../recurring/presentation/providers/recurring_transaction_provider.dart';
 import '../../../settings/presentation/providers/transaction_preset_provider.dart';
@@ -19,10 +20,14 @@ class AddTransactionPage extends ConsumerStatefulWidget {
   final TransactionModel? initialTransaction;
   final TransactionModel? duplicateTransaction;
 
+  /// Opened from a collection page: the collection is preselected and locked.
+  final int? lockedCollectionId;
+
   const AddTransactionPage({
     super.key,
     this.initialTransaction,
     this.duplicateTransaction,
+    this.lockedCollectionId,
   });
 
   @override
@@ -41,6 +46,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
   TransactionStatus _status = TransactionStatus.paid;
   DateTime _date = DateTime.now();
   int? _categoryId;
+  int? _collectionId;
   bool _isSaving = false;
 
   bool _isRecurringEnabled = false;
@@ -61,6 +67,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
     final transaction =
         widget.initialTransaction ?? widget.duplicateTransaction;
     if (transaction == null) {
+      _collectionId = widget.lockedCollectionId;
       _newRecurringStartDate = _date;
       return;
     }
@@ -74,6 +81,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
     _status = transaction.status;
     _date = transaction.date;
     _categoryId = transaction.categoryId;
+    _collectionId = transaction.collectionId;
     _isRecurringEnabled = transaction.recurringTemplateId != null;
     _selectedRecurringTemplateId = transaction.recurringTemplateId;
     _newRecurringStartDate = transaction.date;
@@ -143,6 +151,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
         ..type = _type
         ..status = _status
         ..categoryId = _categoryId!
+        ..collectionId = _collectionId
         ..paymentMethod = paymentMethod.isEmpty ? null : paymentMethod
         ..payee = payee.isEmpty ? null : payee
         ..note = _noteController.text.trim().isEmpty
@@ -398,6 +407,7 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoriesProvider);
+    final collections = ref.watch(collectionsProvider).valueOrNull ?? const [];
     final paymentMethodPresetsAsync = ref.watch(paymentMethodPresetsProvider);
     final payeePresetsAsync = ref.watch(payeePresetsProvider);
     final recurringTemplatesAsync = ref.watch(recurringTransactionsProvider);
@@ -583,6 +593,59 @@ class _AddTransactionPageState extends ConsumerState<AddTransactionPage> {
                                           onChanged: (v) =>
                                               setState(() => _categoryId = v),
                                         ),
+                                        if (collections.isNotEmpty) ...[
+                                          const SizedBox(height: 14),
+                                          DropdownButtonFormField<int?>(
+                                            // A collection deleted elsewhere
+                                            // falls back to none.
+                                            initialValue:
+                                                collections.any(
+                                                  (c) => c.id == _collectionId,
+                                                )
+                                                ? _collectionId
+                                                : null,
+                                            isExpanded: true,
+                                            decoration: const InputDecoration(
+                                              labelText: 'Collection',
+                                            ),
+                                            items: [
+                                              const DropdownMenuItem(
+                                                value: null,
+                                                child: Text('None'),
+                                              ),
+                                              for (final c in collections)
+                                                DropdownMenuItem(
+                                                  value: c.id,
+                                                  child: Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: Text(
+                                                          c.name,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                      ),
+                                                      if (c.separate)
+                                                        const Icon(
+                                                          Icons
+                                                              .visibility_off_outlined,
+                                                          size: 18,
+                                                          semanticLabel:
+                                                              'Kept separate',
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                            ],
+                                            onChanged:
+                                                widget.lockedCollectionId ==
+                                                    null
+                                                ? (v) => setState(
+                                                    () => _collectionId = v,
+                                                  )
+                                                : null,
+                                          ),
+                                        ],
                                         const SizedBox(height: 14),
                                         InkWell(
                                           borderRadius: BorderRadius.circular(
