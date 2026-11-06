@@ -17,6 +17,10 @@ class TransactionFilterNotifier extends StateNotifier<TransactionFilter> {
     state = state.copyWith(categoryId: id);
   }
 
+  void setCollection(int? id) {
+    state = state.copyWith(collectionId: id);
+  }
+
   void setPaymentMethod(String? value) {
     state = state.copyWith(paymentMethod: value);
   }
@@ -53,6 +57,7 @@ class TransactionFilterNotifier extends StateNotifier<TransactionFilter> {
     state = state.copyWith(
       type: null,
       categoryId: null,
+      collectionId: null,
       paymentMethod: null,
       payee: null,
       minAmount: null,
