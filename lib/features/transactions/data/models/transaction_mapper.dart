@@ -8,6 +8,10 @@ import 'transaction_model.dart';
 /// running the old code keeps working; readers prefer this one.
 const transactionCategoryRemoteIdColumn = 'category_remote_id';
 
+/// Column holding the collection's server-side uuid. Null when unassigned, or
+/// when the collection had not reached the server at push time.
+const transactionCollectionRemoteIdColumn = 'collection_remote_id';
+
 /// Column holding the encrypted amount.
 ///
 /// `amount` is `double precision` and cannot hold ciphertext, so encrypted
@@ -31,6 +35,7 @@ extension TransactionMapper on TransactionModel {
     String userId, {
     bool includeId = false,
     String? categoryRemoteId,
+    String? collectionRemoteId,
     FieldCipher? cipher,
   }) {
     final json = <String, dynamic>{
@@ -41,6 +46,7 @@ extension TransactionMapper on TransactionModel {
       'type': type.name,
       'category_id': categoryId,
       transactionCategoryRemoteIdColumn: categoryRemoteId,
+      transactionCollectionRemoteIdColumn: collectionRemoteId,
       'status': status.name,
       'payment_method': cipher == null
           ? paymentMethod
@@ -75,6 +81,7 @@ extension TransactionMapper on TransactionModel {
   static TransactionModel fromJson(
     Map<String, dynamic> json, {
     int? categoryId,
+    int? collectionId,
     FieldCipher? cipher,
   }) {
     final transaction = TransactionModel();
@@ -98,6 +105,7 @@ extension TransactionMapper on TransactionModel {
       _ => TransactionStatus.paid,
     };
     transaction.categoryId = categoryId ?? (json['category_id'] as num).toInt();
+    transaction.collectionId = collectionId;
     transaction.paymentMethod = FieldCipher.readString(
       cipher,
       json['payment_method'],
