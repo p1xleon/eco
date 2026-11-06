@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/privacy/transaction_visibility.dart';
 import '../../../../core/auth/auth_provider.dart';
 import '../../../../core/sync/sync_state.dart';
+import '../../../collections/presentation/providers/collection_provider.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/providers/transaction_repository_provider.dart';
 import 'transaction_filter.dart';
@@ -29,10 +30,35 @@ final visibleTransactionsProvider =
       return transactionsAsync.whenData(visibility.applyToTransactions);
     });
 
+/// [visibleTransactionsProvider] minus transactions in a collection kept
+/// separate. The main list, dashboard and analytics read this; collection
+/// pages read the unfiltered one.
+final mainTransactionsProvider = Provider<AsyncValue<List<TransactionModel>>>((
+  ref,
+) {
+  final visible = ref.watch(visibleTransactionsProvider);
+  final collections = ref.watch(collectionsByIdProvider).valueOrNull;
+  if (collections == null) return visible;
+
+  return visible.whenData(
+    (transactions) => transactions
+        .where((tx) => collections[tx.collectionId]?.separate != true)
+        .toList(),
+  );
+});
+
 final filteredTransactionsProvider =
     Provider<AsyncValue<List<TransactionModel>>>((ref) {
-      final transactionsAsync = ref.watch(visibleTransactionsProvider);
+      final transactionsAsync = ref.watch(mainTransactionsProvider);
       final filter = ref.watch(transactionFilterProvider);
+      // A filter on a collection deleted since (here or on another device)
+      // would otherwise hide every transaction with no visible reason.
+      final collectionsById = ref.watch(collectionsByIdProvider).valueOrNull;
+      final collectionId =
+          collectionsById == null ||
+              collectionsById.containsKey(filter.collectionId)
+          ? filter.collectionId
+          : null;
 
       // Search and filters match real text and amounts; while masked they would
       // let someone probe the hidden values, so masked shows everything.
@@ -60,6 +86,10 @@ final filteredTransactionsProvider =
           }
 
           if (filter.categoryId != null && tx.categoryId != filter.categoryId) {
+            return false;
+          }
+
+          if (collectionId != null && tx.collectionId != collectionId) {
             return false;
           }
 
