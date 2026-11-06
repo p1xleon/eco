@@ -10,6 +10,7 @@ class TransactionFilter {
   final String search;
   final TransactionType? type;
   final int? categoryId;
+  final int? collectionId;
   final String? paymentMethod;
   final String? payee;
   final double? minAmount;
@@ -24,6 +25,7 @@ class TransactionFilter {
     this.search = '',
     this.type,
     this.categoryId,
+    this.collectionId,
     this.paymentMethod,
     this.payee,
     this.minAmount,
@@ -40,6 +42,7 @@ class TransactionFilter {
     String? search,
     Object? type = const Object(),
     Object? categoryId = const Object(),
+    Object? collectionId = const Object(),
     Object? paymentMethod = const Object(),
     Object? payee = const Object(),
     Object? minAmount = const Object(),
@@ -56,6 +59,9 @@ class TransactionFilter {
       categoryId: categoryId == const Object()
           ? this.categoryId
           : categoryId as int?,
+      collectionId: collectionId == const Object()
+          ? this.collectionId
+          : collectionId as int?,
       paymentMethod: paymentMethod == const Object()
           ? this.paymentMethod
           : paymentMethod as String?,
@@ -80,6 +86,7 @@ class TransactionFilter {
     var count = 0;
     if (type != null) count++;
     if (categoryId != null) count++;
+    if (collectionId != null) count++;
     if (paymentMethod != null) count++;
     if (payee != null) count++;
     if (minAmount != null) count++;
