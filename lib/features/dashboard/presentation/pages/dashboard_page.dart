@@ -21,7 +21,7 @@ class DashboardPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final visibility = ref.watch(transactionVisibilityProvider);
     final statsAsync = ref.watch(dashboardStatsProvider);
-    final transactionsAsync = ref.watch(visibleTransactionsProvider);
+    final transactionsAsync = ref.watch(mainTransactionsProvider);
 
     if (visibility.isInvisible) {
       return Scaffold(
