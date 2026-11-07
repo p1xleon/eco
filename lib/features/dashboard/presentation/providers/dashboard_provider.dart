@@ -15,7 +15,7 @@ class DashboardStats {
 }
 
 final dashboardStatsProvider = Provider<AsyncValue<DashboardStats>>((ref) {
-  final transactionsAsync = ref.watch(visibleTransactionsProvider);
+  final transactionsAsync = ref.watch(mainTransactionsProvider);
 
   return transactionsAsync.whenData((transactions) {
     double income = 0;
