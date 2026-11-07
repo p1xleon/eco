@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/privacy/transaction_visibility.dart';
 import '../../core/utils/group_transactions.dart';
 import '../../features/categories/data/models/category_model.dart';
+import '../../features/collections/presentation/providers/collection_provider.dart';
 import '../../features/categories/presentation/providers/category_provider.dart';
 import '../../features/transactions/data/models/transaction_model.dart';
 import '../../features/transactions/data/providers/transaction_repository_provider.dart';
@@ -51,6 +52,62 @@ class _TransactionListGroupedState
         _selectedTransactionIds.add(transaction.id);
       }
     });
+  }
+
+  Future<void> _moveSelectedToCollection() async {
+    final collections = ref.read(collectionsProvider).valueOrNull ?? const [];
+    final messenger = ScaffoldMessenger.of(context);
+    if (collections.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Create a collection first')),
+      );
+      return;
+    }
+    // -1 = remove from its collection; null = sheet dismissed.
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final c in collections)
+              ListTile(
+                leading: const Icon(Icons.folder_outlined),
+                title: Text(c.name),
+                onTap: () => Navigator.pop(context, c.id),
+              ),
+            ListTile(
+              leading: const Icon(Icons.folder_off_outlined),
+              title: const Text('Remove from collection'),
+              onTap: () => Navigator.pop(context, -1),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+
+    final repo = ref.read(transactionRepositoryProvider);
+    final selected = widget.transactions
+        .where((tx) => _selectedTransactionIds.contains(tx.id))
+        .toList();
+    try {
+      for (final tx in selected) {
+        tx.collectionId = picked == -1 ? null : picked;
+        await repo.update(tx);
+      }
+      ref.invalidate(transactionsProvider);
+      if (!mounted) return;
+      _exitSelectionMode();
+      messenger.showSnackBar(
+        SnackBar(content: Text('Updated ${selected.length} transactions')),
+      );
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Failed to update transactions: $error')),
+      );
+    }
   }
 
   void _exitSelectionMode() {
@@ -115,6 +172,7 @@ class _TransactionListGroupedState
                 total: selectedTotal,
                 visibility: visibility,
                 onDone: _exitSelectionMode,
+                onAddToCollection: _moveSelectedToCollection,
               ),
             Expanded(
               child: ListView.builder(
@@ -334,12 +392,14 @@ class _SelectionSummaryBar extends StatelessWidget {
   final double total;
   final TransactionVisibilityState visibility;
   final VoidCallback onDone;
+  final VoidCallback onAddToCollection;
 
   const _SelectionSummaryBar({
     required this.count,
     required this.total,
     required this.visibility,
     required this.onDone,
+    required this.onAddToCollection,
   });
 
   @override
@@ -383,6 +443,11 @@ class _SelectionSummaryBar extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          IconButton(
+            tooltip: 'Add to collection',
+            icon: const Icon(Icons.create_new_folder_outlined),
+            onPressed: onAddToCollection,
           ),
           TextButton(onPressed: onDone, child: const Text('Done')),
         ],
