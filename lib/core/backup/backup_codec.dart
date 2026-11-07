@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../features/categories/data/models/category_model.dart';
+import '../../features/collections/data/models/collection_model.dart';
 import '../../features/recurring/data/models/recurring_transaction_model.dart';
 import '../../features/settings/data/models/transaction_preset_model.dart';
 import '../../features/transactions/data/models/transaction_model.dart';
@@ -34,6 +35,7 @@ class BackupCodec {
       'created_at': payload.createdAt.toIso8601String(),
       'transactions': payload.transactions.map(_transactionToJson).toList(),
       'categories': payload.categories.map(_categoryToJson).toList(),
+      'collections': payload.collections.map(_collectionToJson).toList(),
       'recurring': payload.recurring.map(_recurringToJson).toList(),
       'presets': payload.presets.map(_presetToJson).toList(),
     });
@@ -63,6 +65,11 @@ class BackupCodec {
         for (final item in json['categories'] as List<dynamic>)
           _categoryFromJson(item as Map<String, dynamic>),
       ],
+      // Absent from backups written before collections existed.
+      collections: [
+        for (final item in json['collections'] as List<dynamic>? ?? const [])
+          _collectionFromJson(item as Map<String, dynamic>),
+      ],
       recurring: [
         for (final item in json['recurring'] as List<dynamic>)
           _recurringFromJson(item as Map<String, dynamic>),
@@ -83,6 +90,7 @@ class BackupCodec {
     'type': item.type.name,
     'status': item.status.name,
     'category_id': item.categoryId,
+    'collection_id': item.collectionId,
     'payment_method': item.paymentMethod,
     'payee': item.payee,
     'note': item.note,
@@ -105,6 +113,7 @@ class BackupCodec {
       ..type = _enumByName(TransactionType.values, json['type'])
       ..status = _enumByName(TransactionStatus.values, json['status'])
       ..categoryId = (json['category_id'] as num).toInt()
+      ..collectionId = (json['collection_id'] as num?)?.toInt()
       ..paymentMethod = json['payment_method'] as String?
       ..payee = json['payee'] as String?
       ..note = json['note'] as String?
@@ -136,6 +145,29 @@ class BackupCodec {
       ..type = _enumByName(CategoryType.values, json['type'])
       ..color = (json['color'] as num).toInt()
       ..icon = json['icon'] as String?
+      ..syncState = _enumByName(SyncState.values, json['sync_state'])
+      ..localUpdatedAt = _dateOrNull(json['local_updated_at']);
+  }
+
+  Map<String, dynamic> _collectionToJson(CollectionModel item) => {
+    'id': item.id,
+    'remote_id': item.remoteId,
+    'name': item.name,
+    'color': item.color,
+    'icon': item.icon,
+    'separate': item.separate,
+    'sync_state': item.syncState.name,
+    'local_updated_at': item.localUpdatedAt?.toIso8601String(),
+  };
+
+  CollectionModel _collectionFromJson(Map<String, dynamic> json) {
+    return CollectionModel()
+      ..id = json['id'] as int
+      ..remoteId = json['remote_id'] as String?
+      ..name = json['name'] as String
+      ..color = (json['color'] as num).toInt()
+      ..icon = json['icon'] as String?
+      ..separate = json['separate'] as bool? ?? false
       ..syncState = _enumByName(SyncState.values, json['sync_state'])
       ..localUpdatedAt = _dateOrNull(json['local_updated_at']);
   }
@@ -222,6 +254,7 @@ class BackupPayload {
     required this.createdAt,
     required this.transactions,
     required this.categories,
+    this.collections = const [],
     required this.recurring,
     required this.presets,
   });
@@ -229,12 +262,14 @@ class BackupPayload {
   final DateTime createdAt;
   final List<TransactionModel> transactions;
   final List<CategoryModel> categories;
+  final List<CollectionModel> collections;
   final List<RecurringTransactionModel> recurring;
   final List<TransactionPresetModel> presets;
 
   int get recordCount =>
       transactions.length +
       categories.length +
+      collections.length +
       recurring.length +
       presets.length;
 }
