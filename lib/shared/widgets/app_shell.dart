@@ -77,7 +77,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: pages[index],
+      body: IndexedStack(index: index, children: pages),
       floatingActionButton: FloatingActionButton(
         shape: CircleBorder(),
         onPressed: () {
@@ -97,11 +97,13 @@ class _AppShellState extends ConsumerState<AppShell> {
           const SyncStatusBanner(),
           NavigationBar(
             selectedIndex: index,
+            labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
             onDestinationSelected: onTap,
             destinations: [
               NavigationDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                label: 'Dashboard',
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: 'Home',
               ),
               NavigationDestination(
                 icon: Icon(Icons.receipt_long_outlined),
