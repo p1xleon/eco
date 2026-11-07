@@ -17,7 +17,7 @@ class AnalyticsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final visibility = ref.watch(transactionVisibilityProvider);
-    final transactionsAsync = ref.watch(visibleTransactionsProvider);
+    final transactionsAsync = ref.watch(mainTransactionsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final period = ref.watch(analyticsPeriodProvider);
     final now = DateTime.now();
