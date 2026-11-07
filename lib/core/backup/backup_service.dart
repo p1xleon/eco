@@ -5,6 +5,7 @@ import 'package:isar_community/isar.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../features/categories/data/models/category_model.dart';
+import '../../features/collections/data/models/collection_model.dart';
 import '../../features/recurring/data/models/recurring_transaction_model.dart';
 import '../../features/settings/data/models/transaction_preset_model.dart';
 import '../../features/transactions/data/models/transaction_model.dart';
@@ -39,6 +40,7 @@ class BackupService {
       createdAt: DateTime.now(),
       transactions: await _isar.transactionModels.where().findAll(),
       categories: await _isar.categoryModels.where().findAll(),
+      collections: await _isar.collectionModels.where().findAll(),
       recurring: await _isar.recurringTransactionModels.where().findAll(),
       presets: await _isar.transactionPresetModels.where().findAll(),
     );
@@ -107,6 +109,12 @@ class BackupService {
       item.syncAttempts = 0;
       item.lastSyncError = null;
     }
+    for (final item in payload.collections) {
+      item.remoteId = null;
+      item.syncState = SyncState.pendingCreate;
+      item.syncAttempts = 0;
+      item.lastSyncError = null;
+    }
     for (final item in payload.recurring) {
       item.remoteId = null;
       item.syncState = SyncState.pendingCreate;
@@ -117,11 +125,13 @@ class BackupService {
     await _isar.writeTxn(() async {
       await _isar.transactionModels.clear();
       await _isar.categoryModels.clear();
+      await _isar.collectionModels.clear();
       await _isar.recurringTransactionModels.clear();
       await _isar.transactionPresetModels.clear();
 
       await _isar.transactionModels.putAll(payload.transactions);
       await _isar.categoryModels.putAll(payload.categories);
+      await _isar.collectionModels.putAll(payload.collections);
       await _isar.recurringTransactionModels.putAll(payload.recurring);
       await _isar.transactionPresetModels.putAll(payload.presets);
     });
