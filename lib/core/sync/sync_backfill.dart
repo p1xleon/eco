@@ -1,6 +1,7 @@
 import 'package:isar_community/isar.dart';
 
 import '../../features/categories/data/models/category_model.dart';
+import '../../features/collections/data/models/collection_model.dart';
 import '../../features/recurring/data/models/recurring_transaction_model.dart';
 import '../../features/transactions/data/models/transaction_model.dart';
 import '../database/isar_service.dart';
@@ -29,6 +30,10 @@ class SyncBackfill {
         .filter()
         .remoteIdIsNull()
         .findAll();
+    final collections = await isar.collectionModels
+        .filter()
+        .remoteIdIsNull()
+        .findAll();
     final templates = await isar.recurringTransactionModels
         .filter()
         .remoteIdIsNull()
@@ -41,12 +46,16 @@ class SyncBackfill {
     final staleCategories = categories
         .where((item) => item.syncState == SyncState.synced)
         .toList();
+    final staleCollections = collections
+        .where((item) => item.syncState == SyncState.synced)
+        .toList();
     final staleTemplates = templates
         .where((item) => item.syncState == SyncState.synced)
         .toList();
 
     if (staleTransactions.isEmpty &&
         staleCategories.isEmpty &&
+        staleCollections.isEmpty &&
         staleTemplates.isEmpty) {
       return;
     }
@@ -57,6 +66,9 @@ class SyncBackfill {
     for (final item in staleCategories) {
       item.syncState = SyncState.pendingCreate;
     }
+    for (final item in staleCollections) {
+      item.syncState = SyncState.pendingCreate;
+    }
     for (final item in staleTemplates) {
       item.syncState = SyncState.pendingCreate;
     }
@@ -64,6 +76,7 @@ class SyncBackfill {
     await isar.writeTxn(() async {
       await isar.transactionModels.putAll(staleTransactions);
       await isar.categoryModels.putAll(staleCategories);
+      await isar.collectionModels.putAll(staleCollections);
       await isar.recurringTransactionModels.putAll(staleTemplates);
     });
   }
