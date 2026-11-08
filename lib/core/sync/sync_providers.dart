@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/categories/presentation/providers/category_provider.dart';
+import '../../features/collections/presentation/providers/collection_provider.dart';
 import '../../features/recurring/presentation/providers/recurring_transaction_provider.dart';
 import '../../features/transactions/data/providers/transaction_repository_provider.dart';
 import '../../features/transactions/presentation/providers/transaction_provider.dart';
@@ -26,11 +27,13 @@ class SyncFailure {
 final pendingSyncCountProvider = FutureProvider<int>((ref) async {
   ref.watch(transactionsProvider);
   ref.watch(categoriesProvider);
+  ref.watch(collectionsProvider);
   ref.watch(recurringTransactionsProvider);
 
   final counts = await Future.wait([
     ref.read(transactionRepositoryProvider).pendingCount(),
     ref.read(categoryRepositoryProvider).pendingCount(),
+    ref.read(collectionRepositoryProvider).pendingCount(),
     ref.read(recurringTransactionRepositoryProvider).pendingCount(),
   ]);
 
@@ -42,6 +45,7 @@ final pendingSyncCountProvider = FutureProvider<int>((ref) async {
 final syncFailuresProvider = FutureProvider<List<SyncFailure>>((ref) async {
   ref.watch(transactionsProvider);
   ref.watch(categoriesProvider);
+  ref.watch(collectionsProvider);
   ref.watch(recurringTransactionsProvider);
 
   final transactions = await ref
@@ -49,6 +53,9 @@ final syncFailuresProvider = FutureProvider<List<SyncFailure>>((ref) async {
       .blockedRecords();
   final categories = await ref
       .read(categoryRepositoryProvider)
+      .blockedRecords();
+  final collections = await ref
+      .read(collectionRepositoryProvider)
       .blockedRecords();
   final templates = await ref
       .read(recurringTransactionRepositoryProvider)
@@ -64,6 +71,12 @@ final syncFailuresProvider = FutureProvider<List<SyncFailure>>((ref) async {
     for (final record in categories)
       SyncFailure(
         collection: 'Category',
+        label: record.name,
+        error: record.lastSyncError,
+      ),
+    for (final record in collections)
+      SyncFailure(
+        collection: 'Collection',
         label: record.name,
         error: record.lastSyncError,
       ),
@@ -84,7 +97,13 @@ Future<void> syncNow(WidgetRef ref) async {
   NetworkMonitor.instance.resetBackoff();
   ref.read(transactionRepositoryProvider).invalidateSyncWindow();
   ref.read(categoryRepositoryProvider).invalidateSyncWindow();
+  ref.read(collectionRepositoryProvider).invalidateSyncWindow();
   ref.read(recurringTransactionRepositoryProvider).invalidateSyncWindow();
+
+  // Collections first: their first push re-queues transactions that need the
+  // new uuid, and the transaction sync below sends them.
+  ref.invalidate(collectionsProvider);
+  await ref.read(collectionsProvider.future);
 
   await refreshTransactions(ref);
   await refreshRecurringTransactions(ref);
@@ -99,6 +118,7 @@ Future<void> syncNow(WidgetRef ref) async {
 Future<void> retryFailedSync(WidgetRef ref) async {
   await ref.read(transactionRepositoryProvider).retryBlockedRecords();
   await ref.read(categoryRepositoryProvider).retryBlockedRecords();
+  await ref.read(collectionRepositoryProvider).retryBlockedRecords();
   await ref.read(recurringTransactionRepositoryProvider).retryBlockedRecords();
 
   await syncNow(ref);
