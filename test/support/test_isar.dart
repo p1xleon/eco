@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:eco/core/database/isar_service.dart';
 import 'package:eco/core/network/network_monitor.dart';
 import 'package:eco/features/categories/data/models/category_model.dart';
+import 'package:eco/features/collections/data/models/collection_model.dart';
 import 'package:eco/features/recurring/data/models/recurring_transaction_model.dart';
 import 'package:eco/features/settings/data/models/transaction_preset_model.dart';
 import 'package:eco/features/transactions/data/models/transaction_model.dart';
@@ -25,6 +26,7 @@ class TestIsar {
         RecurringTransactionModelSchema,
         TransactionModelSchema,
         CategoryModelSchema,
+        CollectionModelSchema,
         TransactionPresetModelSchema,
       ],
       directory: directory.path,
