@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cryptography/cryptography.dart';
 import 'package:eco/core/backup/backup_codec.dart';
 import 'package:eco/core/backup/backup_service.dart';
@@ -5,6 +7,7 @@ import 'package:eco/core/crypto/field_cipher.dart';
 import 'package:eco/core/database/isar_service.dart';
 import 'package:eco/core/sync/sync_state.dart';
 import 'package:eco/features/categories/data/models/category_model.dart';
+import 'package:eco/features/collections/data/models/collection_model.dart';
 import 'package:eco/features/recurring/data/models/recurring_transaction_model.dart';
 import 'package:eco/features/settings/data/models/transaction_preset_model.dart';
 import 'package:eco/features/transactions/data/models/transaction_model.dart';
@@ -48,6 +51,11 @@ CategoryModel buildCategory() {
     ..color = 4283215696
     ..icon = 'cart';
 }
+
+CollectionModel buildCollection() => CollectionModel()
+  ..remoteId = 'collection-1'
+  ..name = 'Lisbon trip'
+  ..color = 0xFF3B82F6;
 
 RecurringTransactionModel buildRecurring() {
   return RecurringTransactionModel()
@@ -108,6 +116,64 @@ void main() {
       expect(restored.presets.single.value, 'Amazon');
     });
 
+    test('round-trips collections and the transaction link', () {
+      final codec = BackupCodec(cipherOf(1));
+      final payload = BackupPayload(
+        createdAt: DateTime.utc(2026, 10, 24),
+        transactions: [buildTransaction()..collectionId = 3],
+        categories: const [],
+        collections: [buildCollection()..id = 3],
+        recurring: const [],
+        presets: const [],
+      );
+
+      final restored = codec.decode(codec.encode(payload));
+
+      expect(restored.collections.single.name, 'Lisbon trip');
+      expect(restored.collections.single.id, 3);
+      expect(restored.transactions.single.collectionId, 3);
+      expect(restored.recordCount, 2);
+    });
+
+    test('reads a backup written before collections existed', () {
+      final cipher = cipherOf(1);
+      final legacy = {
+        'format_version': 1,
+        'created_at': DateTime.utc(2026, 9, 17).toIso8601String(),
+        'transactions': [
+          {
+            'id': 1,
+            'remote_id': null,
+            'title': 'Rent',
+            'amount': 10,
+            'date': '2026-09-01T00:00:00.000Z',
+            'type': 'expense',
+            'status': 'paid',
+            'category_id': 7,
+            'payment_method': null,
+            'payee': null,
+            'note': null,
+            'created_at': '2026-09-01T00:00:00.000Z',
+            'updated_at': null,
+            'recurring_id': null,
+            'recurring_template_id': null,
+            'is_recurring_instance': null,
+            'sync_state': 'synced',
+            'local_updated_at': null,
+          },
+        ],
+        'categories': [],
+        'recurring': [],
+        'presets': [],
+      };
+      final bytes = utf8.encode(cipher.encrypt(jsonEncode(legacy)));
+
+      final restored = BackupCodec(cipher).decode(bytes);
+
+      expect(restored.collections, isEmpty);
+      expect(restored.transactions.single.collectionId, isNull);
+    });
+
     test('writes a file the server key cannot read', () {
       final codec = BackupCodec(cipherOf(1));
       final bytes = codec.encode(
@@ -152,6 +218,7 @@ void main() {
             createdAt: DateTime.utc(2026, 9, 17),
             transactions: [buildTransaction(title: 'Rent')],
             categories: [buildCategory()],
+            collections: [buildCollection()],
             recurring: [buildRecurring()],
             presets: const [],
           ),
@@ -174,6 +241,12 @@ void main() {
       expect(transactions.single.lastSyncError, isNull);
       expect(categories.single.syncState, SyncState.pendingCreate);
       expect(categories.single.remoteId, isNull);
+
+      final collections = await IsarService.isar.collectionModels
+          .where()
+          .findAll();
+      expect(collections.single.remoteId, isNull);
+      expect(collections.single.syncState, SyncState.pendingCreate);
     });
 
     test('create captures what is in the database', () async {
