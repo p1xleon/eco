@@ -9,6 +9,7 @@ import '../sync/sync_state.dart';
 import '../../features/recurring/data/models/recurring_transaction_model.dart';
 import '../../features/transactions/data/models/transaction_model.dart';
 import '../../features/categories/data/models/category_model.dart';
+import '../../features/collections/data/models/collection_model.dart';
 import '../../features/settings/data/models/transaction_preset_model.dart';
 
 class IsarService {
@@ -53,6 +54,7 @@ class IsarService {
             RecurringTransactionModelSchema,
             TransactionModelSchema,
             CategoryModelSchema,
+            CollectionModelSchema,
             TransactionPresetModelSchema,
           ],
           directory: dir.path,
