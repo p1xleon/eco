@@ -1,4 +1,5 @@
 import 'package:eco/features/categories/data/remote/category_remote_source.dart';
+import 'package:eco/features/collections/data/remote/collection_remote_source.dart';
 import 'package:eco/features/recurring/data/remote/recurring_transaction_remote_source.dart';
 import 'package:eco/features/transactions/data/remote/transaction_remote_source.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -234,6 +235,60 @@ class FakeCategoryRemoteSource implements CategoryRemoteSource {
 
   @override
   Future<void> deleteCategory(String id) async {
+    _guard();
+    rows.remove(id);
+  }
+}
+
+class FakeCollectionRemoteSource implements CollectionRemoteSource {
+  final Map<String, Map<String, dynamic>> rows = {};
+
+  bool isReachable = true;
+  int _nextId = 1;
+
+  @override
+  SupabaseClient get client => throw UnimplementedError();
+
+  @override
+  User? get currentUser => _testUser;
+
+  @override
+  bool get isAuthenticated => true;
+
+  void _guard() {
+    if (!isReachable) throw _unreachable();
+  }
+
+  @override
+  Future<Map<String, dynamic>> addCollection(Map<String, dynamic> data) async {
+    _guard();
+
+    final id = 'collection-${_nextId++}';
+    final row = {...data, 'id': id};
+    rows[id] = row;
+    return row;
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateCollection(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    _guard();
+
+    final row = {...data, 'id': id};
+    rows[id] = row;
+    return row;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchCollections() async {
+    _guard();
+    return rows.values.map((row) => {...row}).toList();
+  }
+
+  @override
+  Future<void> deleteCollection(String id) async {
     _guard();
     rows.remove(id);
   }
