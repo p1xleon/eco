@@ -92,6 +92,22 @@ void main() {
     expect(remote.rows.values.single['title'], 'Rent (new flat)');
   });
 
+  test(
+    'edit of a template deleted on the server is pushed as a new row',
+    () async {
+      final saved = await repository.save(
+        buildTemplate(categoryId: categoryId),
+      );
+      remote.rows.clear();
+
+      saved.title = 'Rent (new flat)';
+      await repository.save(saved);
+
+      expect(remote.rows.values.single['title'], 'Rent (new flat)');
+      expect(await repository.pendingCount(), 0);
+    },
+  );
+
   test('delete made offline is not resurrected', () async {
     final saved = await repository.save(buildTemplate(categoryId: categoryId));
 
