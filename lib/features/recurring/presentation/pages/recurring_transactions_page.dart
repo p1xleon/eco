@@ -8,8 +8,10 @@ import '../../../../core/sync/sync_providers.dart';
 import '../../../categories/data/models/category_model.dart';
 import '../../../categories/presentation/providers/category_provider.dart';
 import '../../../transactions/data/models/transaction_model.dart';
+import '../../../transactions/presentation/providers/transaction_provider.dart';
 import '../../data/models/recurring_transaction_model.dart';
 import '../providers/recurring_transaction_provider.dart';
+import 'link_transactions_page.dart';
 
 class RecurringTransactionsPage extends ConsumerStatefulWidget {
   const RecurringTransactionsPage({super.key});
@@ -58,6 +60,25 @@ class _RecurringTransactionsViewState
     final visibleDueAsync = dueAsync.whenData(
       visibility.applyToRecurringTemplates,
     );
+
+    // Lets two templates with the same name be told apart: the original is
+    // the one the past transactions point at.
+    final linkedCounts = <int, int>{};
+    final transactions =
+        ref.watch(transactionsProvider).valueOrNull ?? const [];
+    for (final template in recurringAsync.valueOrNull ?? const []) {
+      linkedCounts.putIfAbsent(
+        template.id,
+        () => transactions
+            .where(
+              (tx) =>
+                  tx.recurringTemplateId == template.id ||
+                  (template.remoteId != null &&
+                      tx.recurringId == template.remoteId),
+            )
+            .length,
+      );
+    }
 
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -122,6 +143,7 @@ class _RecurringTransactionsViewState
                             padding: const EdgeInsets.only(bottom: 12),
                             child: _RecurringTemplateCard(
                               template: item,
+                              linkedCount: linkedCounts[item.id] ?? 0,
                               category: categoryMap[item.categoryId],
                               visibility: visibility,
                               isDue: true,
@@ -133,6 +155,7 @@ class _RecurringTransactionsViewState
                                 initial: item,
                               ),
                               onDelete: () => _deleteTemplate(item),
+                              onLinkPast: () => _linkPast(item),
                               onToggleActive: (value) =>
                                   _toggleTemplate(item, value),
                             ),
@@ -174,6 +197,7 @@ class _RecurringTransactionsViewState
                             padding: const EdgeInsets.only(bottom: 12),
                             child: _RecurringTemplateCard(
                               template: item,
+                              linkedCount: linkedCounts[item.id] ?? 0,
                               category: categoryMap[item.categoryId],
                               visibility: visibility,
                               isDue: service.isDue(item),
@@ -189,6 +213,7 @@ class _RecurringTransactionsViewState
                                 initial: item,
                               ),
                               onDelete: () => _deleteTemplate(item),
+                              onLinkPast: () => _linkPast(item),
                               onToggleActive: (value) =>
                                   _toggleTemplate(item, value),
                             ),
@@ -337,6 +362,23 @@ class _RecurringTransactionsViewState
     }
   }
 
+  Future<void> _linkPast(RecurringTransactionModel template) async {
+    final count = await Navigator.push<int>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LinkTransactionsPage(template: template),
+      ),
+    );
+    if (count == null || !mounted) return;
+
+    ref.invalidate(transactionsProvider);
+    await _refresh();
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Linked $count transactions.')));
+  }
+
   Future<double?> _promptForAmount(double? initialAmount) async {
     return showDialog<double>(
       context: context,
@@ -472,6 +514,7 @@ class _DueSectionHeader extends StatelessWidget {
 
 class _RecurringTemplateCard extends StatelessWidget {
   final RecurringTransactionModel template;
+  final int linkedCount;
   final CategoryModel? category;
   final TransactionVisibilityState visibility;
   final bool isDue;
@@ -480,10 +523,12 @@ class _RecurringTemplateCard extends StatelessWidget {
   final VoidCallback? onSkip;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onLinkPast;
   final ValueChanged<bool> onToggleActive;
 
   const _RecurringTemplateCard({
     required this.template,
+    required this.linkedCount,
     required this.category,
     required this.visibility,
     required this.isDue,
@@ -492,6 +537,7 @@ class _RecurringTemplateCard extends StatelessWidget {
     required this.onSkip,
     required this.onEdit,
     required this.onDelete,
+    required this.onLinkPast,
     required this.onToggleActive,
   });
 
@@ -556,6 +602,13 @@ class _RecurringTemplateCard extends StatelessWidget {
                         'Next due ${dateFormat.format(template.nextDueDate)}',
                         style: TextStyle(color: scheme.onSurfaceVariant),
                       ),
+                      Text(
+                        '#${template.id} · $linkedCount linked · '
+                        'created ${dateFormat.format(template.createdAt)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -592,6 +645,11 @@ class _RecurringTemplateCard extends StatelessWidget {
                   onPressed: onEdit,
                   icon: const Icon(Icons.edit_outlined),
                   label: const Text('Edit'),
+                ),
+                TextButton.icon(
+                  onPressed: onLinkPast,
+                  icon: const Icon(Icons.link),
+                  label: const Text('Link past'),
                 ),
                 TextButton.icon(
                   onPressed: onDelete,
