@@ -147,6 +147,33 @@ class RecurringRecoveryService {
     );
   }
 
+  /// Points the transactions at [template]. Both link fields change: the
+  /// "period already recorded" check reads either.
+  Future<int> relink(
+    List<int> transactionIds,
+    RecurringTransactionModel template,
+  ) async {
+    final isar = IsarService.isar;
+    final now = DateTime.now();
+
+    return isar.writeTxn(() async {
+      final found = await isar.transactionModels.getAll(transactionIds);
+      final txs = found.whereType<TransactionModel>().toList();
+      for (final tx in txs) {
+        tx
+          ..recurringTemplateId = template.id
+          ..recurringId = template.remoteId ?? template.id.toString()
+          ..isRecurringInstance = true
+          ..localUpdatedAt = now;
+        if (tx.syncState == SyncState.synced) {
+          tx.syncState = SyncState.pendingUpdate;
+        }
+      }
+      await isar.transactionModels.putAll(txs);
+      return txs.length;
+    });
+  }
+
   Future<RecurringRecoveryResult> recoverMissingTemplates() async {
     final inspection = await inspect();
     final now = DateTime.now().toUtc();
