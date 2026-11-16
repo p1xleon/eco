@@ -233,6 +233,15 @@ class RecurringTransactionRepository {
       await _saveLocal(local);
       return true;
     } catch (error) {
+      if (isRowNotFound(error)) {
+        // Deleted on the server (or another device) while this edit waited.
+        // The edit wins: push it again as a new row.
+        local.remoteId = null;
+        local.syncState = SyncState.pendingCreate;
+        await _saveLocal(local);
+        return _pushCreate(local);
+      }
+
       await _recordPushFailure(local, error);
       return false;
     }
