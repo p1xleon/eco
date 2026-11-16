@@ -165,7 +165,11 @@ class FakeRecurringTransactionRemoteSource
     _guard();
 
     if (!rows.containsKey(id)) {
-      throw StateError('No recurring transaction $id');
+      // What PostgREST answers when `.single()` matches no row.
+      throw const PostgrestException(
+        message: 'JSON object requested, multiple (or no) rows returned',
+        code: 'PGRST116',
+      );
     }
 
     final row = {...data, 'id': id};
